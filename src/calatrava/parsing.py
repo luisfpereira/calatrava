@@ -98,8 +98,64 @@ def _update_base_cls_names(cls, context_name, context_cls_names, imports):
     cls.base_classes = base_classes
 
 
-def _get_imports(filename):
-    # TODO: not robust enough
+def _get_module_import(filename, project_loc):
+    module_path = str(Path(filename).relative_to(project_loc))
+    return '.'.join(module_path.split('.')[0].split(os.sep))
+
+
+def _get_path_from_obj_import(object_import, project_loc):
+    return _get_path_from_module_import(
+        '.'.join(object_import.split('.')[:-1]), project_loc)
+
+
+def _get_path_from_module_import(module_name, project_loc):
+    return os.path.join(project_loc, f"{module_name.replace('.', os.sep)}.py")
+
+
+def _transform_relative_imports(module_name, imports):
+    corrected_imports = []
+    for import_ in imports:
+        if import_.level:
+            import_.name = '.'.join(module_name.split('.')[:-import_.level] + import_.name.split('.'))
+
+        corrected_imports.append(import_)
+
+    return corrected_imports
+
+
+def _correct_imports_from_init(imports, project_loc, project_name):
+    # TODO: correct for recursive errors
+    corrected_imports = []
+    for import_ in imports:
+        if not import_.name.startswith(project_name):
+            corrected_imports.append(import_)
+            continue
+
+        filename = _get_path_from_module_import(import_.name, project_loc)
+        if not os.path.exists(filename):
+            filename = _get_path_from_obj_import(import_.name, project_loc).split('.')[0]
+
+            if os.path.isdir(filename):
+                filename += f'{os.sep}__init__.py'
+                init_imports = _get_imports(filename, project_loc)
+
+                for init_import in init_imports:
+                    if init_import.split('.')[-1] == import_.name.split('.')[-1]:
+                        import_.name = init_import
+                        break
+
+        corrected_imports.append(import_)
+
+    return corrected_imports
+
+
+def _correct_import_from_init():
+    pass
+
+
+def _get_imports(filename, project_loc):
+    # TODO: use caching
+    # TODO: _update_imports_from_imports
     g = findimports.ModuleGraph()
     g.external_dependencies = True
     g.parsePathname(filename)
@@ -107,10 +163,14 @@ def _get_imports(filename):
     # assuming only one module
     module = g.listModules()[0]
 
-    imports = [imp.name for imp in module.imported_names]
+    module_import = _get_module_import(filename, project_loc)
+    imports = _transform_relative_imports(module_import, module.imported_names)
 
-    # return module.imports
-    return imports
+    # # correct init imports
+    # imports = _correct_imports_from_init(
+    #     imports, project_loc, module_import.split('.')[0])
+
+    return [imp.name for imp in imports]
 
 
 def get_context(path, project_loc):
@@ -124,7 +184,7 @@ def get_context(path, project_loc):
     _update_context_names(context, path, project_loc)
     _create_class_list(context)
     _create_class_attrs(context)
-    imports = _get_imports(path)
+    imports = _get_imports(path, project_loc)
     _update_classes_inheritance(context, imports)
 
     return context
@@ -145,6 +205,21 @@ def find_class(project_name, project_loc, main_cls_name,
 
     else:
         class_path = ".".join(main_cls_name.split('.')[:-1]).replace('.', os.sep)
+
+        # TODO: improve (is buggy)
+        dir_path = f'{project_loc}{os.sep}{class_path}'
+        if os.path.isdir(dir_path):  # is __init__
+            init_imports = _get_imports(
+                f'{project_loc}{os.sep}{class_path}/__init__.py',
+                project_loc)
+
+            for init_import in init_imports:
+                if init_import.split('.')[-1] == main_cls_name.split('.')[-1]:
+                    class_path = ".".join(init_import.split('.')[:-1]).replace('.', os.sep)
+                    break
+            else:
+                raise Exception(f'Cannot find {main_cls_name}')
+
         while True:
             if class_path == '':
                 raise Exception(f'Cannot find {main_cls_name}')
@@ -182,6 +257,7 @@ def find_classes(project_name, project_loc, main_cls_names,
 
 def _find_base_classes(main_cls, project_name, project_loc,
                        contexts, existing_classes):
+
     for cls_name in main_cls.base_classes:
         if cls_name in existing_classes:
             cls = existing_classes[cls_name]
@@ -208,7 +284,7 @@ def parse_module(project_name, project_loc, module_name,
         context = contexts[module_name]
         return _get_context_cls_names(context)
 
-    path = os.path.join(project_loc, f"{module_name.replace('.', os.sep)}.py")
+    path = _get_path_from_module_import(module_name, project_loc)
     context = get_context(path, project_loc)
     contexts[context.global_pseudo_function.name] = context
     existing_classes.update({cls.name: cls for cls in context.fileinfo.class_list})
