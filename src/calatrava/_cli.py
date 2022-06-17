@@ -61,7 +61,7 @@ def main_cli():
 @click.command()
 @add_options(_mandatory_args)
 @add_options(_common_options)
-def project(project_name, project_loc, filters,
+def package(package_name, package_loc, filters,
             output_filename, output_format):
 
     from calatrava.parsing import parse_package
@@ -70,7 +70,7 @@ def project(project_name, project_loc, filters,
     existing_classes = {}
 
     main_cls_names = parse_package(
-        project_name, project_loc,
+        package_name, package_loc,
         contexts, existing_classes
     )
 
@@ -78,7 +78,7 @@ def project(project_name, project_loc, filters,
                      output_filename, output_format)
 
 
-main_cli.add_command(project)
+main_cli.add_command(package)
 
 
 @click.command()
