@@ -63,6 +63,8 @@ def main_cli():
 @add_options(_common_options)
 def package(package_name, package_loc, filters,
             output_filename, output_format):
+    """Builds a diagram for a package.
+    """
 
     from calatrava.parsing import parse_package
 
@@ -87,6 +89,8 @@ main_cli.add_command(package)
 @add_options(_common_options)
 def subpackages(project_name, project_loc, subpackage_names, filters,
                 output_filename, output_format):
+    """Builds a diagram for given subpackage(s).
+    """
 
     from calatrava.parsing import parse_subpackages
 
@@ -113,6 +117,8 @@ main_cli.add_command(subpackages)
 @add_options(_common_options)
 def modules(project_name, project_loc, module_names, filters,
             output_filename, output_format):
+    """Builds a diagram for given module(s).
+    """
 
     from calatrava.parsing import parse_modules
 
@@ -137,6 +143,8 @@ main_cli.add_command(modules)
 @add_options(_common_options)
 def classes(project_name, project_loc, class_names, filters,
             output_filename, output_format):
+    """Builds a diagram for given class(es).
+    """
 
     from calatrava.parsing import find_classes
 
