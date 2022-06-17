@@ -41,11 +41,9 @@ calatrava <command> <package_name> <package_dir> <args> -o <filename>
 ```
 
 
-`<args>` is not specified because it depends on the particular command (moreover, `<args>` can be single or multiple):
+`<args>` depends on the particular command and can be can be single or multiple):
 
-* `classes`: class(es) import path(s)
-* `modules`: module(s) import path(s)
-* `subpackages`: subpackage(s) import path(s)
+* `classes`/`modules`/`subpackages`: class(es)/module(s)/subpackage(s) import path(s)
 * `package`: not applicable
 
 
@@ -91,9 +89,6 @@ calatrava classes $(GEOMSTATS_DIR) geomstats.geometry.spd_matrices.SPDMatrices g
 
 ### Modules
 
-Similarly, for modules:
-
-
 ```bash
 calatrava modules geomstats $(GEOMSTATS_DIR) geomstats.geometry.spd_matrices
 ```
@@ -101,13 +96,11 @@ calatrava modules geomstats $(GEOMSTATS_DIR) geomstats.geometry.spd_matrices
 ![example_module.svg](https://raw.githubusercontent.com/lpereira95/calatrava/master/images/example_module.svg)
 
 
-Follow the same procedure as above for several modules.
+(Follow the same procedure as above for several modules.)
 
 
 ### Subpackages
 
-
-Similarly, for subpackages:
 
 ```bash
 calatrava subpackages geomstats $(GEOMSTATS_DIR) geomstats.geometry
@@ -116,13 +109,10 @@ calatrava subpackages geomstats $(GEOMSTATS_DIR) geomstats.geometry
 ![example_subpackage.svg](https://raw.githubusercontent.com/lpereira95/calatrava/master/images/example_subpackage.svg)
 
 
-Follow the same procedure as above for several subpackages.
+(Follow the same procedure as above for several subpackages.)
 
 
 ### Package
-
-
-Similarly, for packages:
 
 ```bash
 calatrava package geomstats $(GEOMSTATS_DIR)
@@ -137,10 +127,10 @@ calatrava package geomstats $(GEOMSTATS_DIR)
 
 `calatrava` builds inheritance trees. (Composition information is not easy to gather in a dynamic language and is therefore ignored.) Some (hopefully) useful information:
 
-* Arrows represent inheritance
+* Arrows represent inheritance.
 * Inheritance coming from external packages is ignored (e.g. if your class derives from [`sklearn.base.Estimator`](https://scikit-learn.org/stable/modules/generated/sklearn.base.BaseEstimator.html#sklearn.base.BaseEstimator), this relationship will be ignored). 
-* Trees are built bottom-up, meaning we start with a desired class (e.g. the one specified with `classes` command) and create records for all the from which it inherits directly or from which parents (and grandparents, and...) inherit from.
-* Each record is split into two boxes: the first contains attributes, the second containts methods.
+* Trees are built bottom-up, meaning we start with a desired class (e.g. the one specified with `classes` command) and create records for all the classes from which it inherits directly or from which parents (and grandparents, and...) inherit from.
+* Each record is split into two boxes: the first contains attributes, the second contains methods.
 * (For now) properties are treated as methods.
 * Attributes or methods that are inherited are prefixed by `-`.
 * Attributes or methods that are overriden or defined for the first time are prefixed by `+`.
