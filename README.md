@@ -66,7 +66,7 @@ Let's examplify `calatrava` usage by exploring [`geomstats`](https://github.com/
 The following command:
 
 ```bash
-calatrava classes $(GEOMSTATS_DIR) geomstats.geometry.spd_matrices.SPDMatrices
+calatrava classes $GEOMSTATS_DIR geomstats.geometry.spd_matrices.SPDMatrices
 ```
 
 
@@ -75,13 +75,13 @@ creates
 ![example_class.svg](https://raw.githubusercontent.com/lpereira95/calatrava/master/images/example_class.svg)
 
 
-**Note**: do `export GEOMSTATS_DIR=<dirpath>` or replace `$(GEOMSTATS_DIR)` with a valid path.
+**Note**: do `export GEOMSTATS_DIR=<dirpath>` or replace `$GEOMSTATS_DIR` with a valid path.
 
 
 To draw more classes, just add the corresponding import:
 
 ```bash
-calatrava classes $(GEOMSTATS_DIR) geomstats.geometry.spd_matrices.SPDMatrices geomstats.geometry.spd_matrices.SPDMetricAffine
+calatrava classes $GEOMSTATS_DIR geomstats.geometry.spd_matrices.SPDMatrices geomstats.geometry.spd_matrices.SPDMetricAffine
 ```
 
 ![example_classes.svg](https://raw.githubusercontent.com/lpereira95/calatrava/master/images/example_classes.svg)
@@ -90,7 +90,7 @@ calatrava classes $(GEOMSTATS_DIR) geomstats.geometry.spd_matrices.SPDMatrices g
 ### Modules
 
 ```bash
-calatrava modules geomstats $(GEOMSTATS_DIR) geomstats.geometry.spd_matrices
+calatrava modules geomstats $GEOMSTATS_DIR geomstats.geometry.spd_matrices
 ```
 
 ![example_module.svg](https://raw.githubusercontent.com/lpereira95/calatrava/master/images/example_module.svg)
@@ -103,7 +103,7 @@ calatrava modules geomstats $(GEOMSTATS_DIR) geomstats.geometry.spd_matrices
 
 
 ```bash
-calatrava subpackages geomstats $(GEOMSTATS_DIR) geomstats.geometry
+calatrava subpackages geomstats $GEOMSTATS_DIR geomstats.geometry
 ```
 
 ![example_subpackage.svg](https://raw.githubusercontent.com/lpereira95/calatrava/master/images/example_subpackage.svg)
@@ -115,7 +115,7 @@ calatrava subpackages geomstats $(GEOMSTATS_DIR) geomstats.geometry
 ### Package
 
 ```bash
-calatrava package geomstats $(GEOMSTATS_DIR)
+calatrava package geomstats $GEOMSTATS_DIR
 ```
 
 (For sanity, the generated diagram will not be displayed. Try it out yourself!)
