@@ -19,10 +19,10 @@ def add_options(options):
     return _add_options
 
 
-_proj_name_arg = click.argument("project_name", type=str, required=True)
-_proj_loc_arg = click.argument("project_loc", type=click.Path(exists=True),
-                               required=True)
-_mandatory_args = [_proj_name_arg, _proj_loc_arg]
+_package_name_arg = click.argument("package_name", type=str, required=True)
+_package_loc_arg = click.argument("package_loc", type=click.Path(exists=True),
+                                  required=True)
+_mandatory_args = [_package_name_arg, _package_loc_arg]
 
 
 _output_filename_opt = click.option("--output-filename", "-o", type=str,
@@ -87,7 +87,7 @@ main_cli.add_command(package)
 @add_options(_mandatory_args)
 @click.argument("subpackage_names", nargs=-1, type=str, required=True)
 @add_options(_common_options)
-def subpackages(project_name, project_loc, subpackage_names, filters,
+def subpackages(package_name, package_loc, subpackage_names, filters,
                 output_filename, output_format):
     """Builds a diagram for given subpackage(s).
     """
@@ -100,7 +100,7 @@ def subpackages(project_name, project_loc, subpackage_names, filters,
     existing_classes = {}
 
     main_cls_names = parse_subpackages(
-        project_name, project_loc, subpackage_names,
+        package_name, package_loc, subpackage_names,
         contexts, existing_classes
     )
 
@@ -115,7 +115,7 @@ main_cli.add_command(subpackages)
 @add_options(_mandatory_args)
 @click.argument("module_names", nargs=-1, type=str, required=True)
 @add_options(_common_options)
-def modules(project_name, project_loc, module_names, filters,
+def modules(package_name, package_loc, module_names, filters,
             output_filename, output_format):
     """Builds a diagram for given module(s).
     """
@@ -126,7 +126,7 @@ def modules(project_name, project_loc, module_names, filters,
     existing_classes = {}
 
     main_cls_names = parse_modules(
-        project_name, project_loc, module_names,
+        package_name, package_loc, module_names,
         contexts, existing_classes
     )
 
@@ -141,7 +141,7 @@ main_cli.add_command(modules)
 @add_options(_mandatory_args)
 @click.argument("class_names", nargs=-1, type=str, required=True)
 @add_options(_common_options)
-def classes(project_name, project_loc, class_names, filters,
+def classes(package_name, package_loc, class_names, filters,
             output_filename, output_format):
     """Builds a diagram for given class(es).
     """
@@ -152,7 +152,7 @@ def classes(project_name, project_loc, class_names, filters,
     existing_classes = {}
 
     find_classes(
-        project_name, project_loc, class_names,
+        package_name, package_loc, class_names,
         contexts, existing_classes
     )
 
