@@ -45,7 +45,7 @@ calatrava <command> <package_name> <package_dir> <args> -o <filename>
 
 * `classes`: class(es) import path(s)
 * `modules`: module(s) import path(s)
-* `subpackages`: subpackage(s) path(s)
+* `subpackages`: subpackage(s) import path(s)
 * `package`: not applicable
 
 
@@ -116,7 +116,7 @@ calatrava subpackages geomstats $(GEOMSTATS_DIR) geomstats.geometry
 ![example_subpackage.svg](https://raw.githubusercontent.com/lpereira95/calatrava/master/images/example_subpackage.svg)
 
 
-Follow the same procedure as above for several modules.
+Follow the same procedure as above for several subpackages.
 
 
 ### Package
@@ -128,11 +128,19 @@ Similarly, for packages:
 calatrava package geomstats $(GEOMSTATS_DIR)
 ```
 
-(For sanity, generated diagram will not be displayed. Try it out yourself!)
+(For sanity, the generated diagram will not be displayed. Try it out yourself!)
 
 
 
 ## Which information is conveyed in a diagram?
 
 
-inheritance information
+`calatrava` builds inheritance trees. (Composition information is not easy to gather in a dynamic language and is therefore ignored.) Some (hopefully) useful information:
+
+* Arrows represent inheritance
+* Inheritance coming from external packages is ignored (e.g. if your class derives from [`sklearn.base.Estimator`](https://scikit-learn.org/stable/modules/generated/sklearn.base.BaseEstimator.html#sklearn.base.BaseEstimator), this relationship will be ignored). 
+* Trees are built bottom-up, meaning we start with a desired class (e.g. the one specified with `classes` command) and create records for all the from which it inherits directly or from which parents (and grandparents, and...) inherit from.
+* Each record is split into two boxes: the first contains attributes, the second containts methods.
+* (For now) properties are treated as methods.
+* Attributes or methods that are inherited are prefixed by `-`.
+* Attributes or methods that are overriden or defined for the first time are prefixed by `+`.
