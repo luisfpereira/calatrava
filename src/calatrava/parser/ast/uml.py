@@ -5,6 +5,10 @@ import os
 import tokenize
 import glob
 from collections import namedtuple
+import pkgutil
+import logging
+
+logging.basicConfig(format='%(message)s', level=logging.INFO)
 
 
 PYTHON_PROTECTED_CLASSES = ['Exception', 'type']
@@ -327,9 +331,17 @@ class PackageVisitor:
 
 
 class Package:
-    # TODO: allow to find in installation
 
     def __init__(self, path):
+
+        if not os.path.exists(path):
+            # FIXME: will fail in tons of cases
+            package_name = path
+            package = pkgutil.get_loader(package_name)
+
+            path = f'{os.path.sep}'.join(package.path.split(os.path.sep)[:-1])
+            logging.info(f"Found `{package_name}` in `{path}`")
+
         self.path = Path(path)
 
         self.visitor = PackageVisitor(self)
