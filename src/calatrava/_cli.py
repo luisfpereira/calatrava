@@ -1,35 +1,15 @@
 
-import importlib
+
 import click
 
 
+from calatrava.filters import load_filters_from_json
 from calatrava.graphviz.uml import (
     create_graph,
     save_graph,
+    Package,
+    PackageManager,
 )
-from calatrava.filters import apply_filters
-
-
-def _load_filters(filter_names):
-    # TODO: delete?
-    filters_loc = 'calatrava.filters'
-    filters_mod = importlib.import_module(filters_loc)
-    filters = [getattr(filters_mod, filter_name)
-               for filter_name in filter_names]
-
-    return filters
-
-
-def _filter_and_draw(main_cls_names, existing_classes, filter_names,
-                     output_filename, output_format):
-
-    filters = _load_filters(filter_names)
-    filtered_cls_names = apply_filters(filters, existing_classes)
-
-    dot = create_graph(existing_classes,
-                       main_cls_names=main_cls_names,
-                       filtered_cls_names=filtered_cls_names)
-    save_graph(dot, output_filename, view=True, format=output_format)
 
 
 def _handle_variadic_input(args):
@@ -55,15 +35,10 @@ def main_cli():
 @click.option("--output-filename", "-o", type=str,
               default="calatrava_tree")
 @click.option("--output-format", type=str, default='svg')
-@click.option("--filters", '-f', type=str, multiple=True, default=())
-def uml(args, output_filename, output_format):
+@click.option("--filters-filename", '-f', type=str, default='')
+def uml(args, output_filename, output_format, filters_filename):
     """Builds UML diagram.
     """
-    from calatrava.parser.ast.uml import (
-        Package,
-        PackageManager,
-    )
-
     packages_paths, imports = _handle_variadic_input(args)
 
     packages = [Package(package_path) for package_path in packages_paths]
@@ -77,8 +52,12 @@ def uml(args, output_filename, output_format):
 
     package_manager.update_inheritance()
 
-    classes = package_manager.get_classes().values()
-    dot = create_graph(classes)
+    classes = list(package_manager.get_classes().values())
+
+    if filters_filename:
+        filters = load_filters_from_json(filters_filename) if filters_filename else []
+
+    dot = create_graph(classes, filters=filters)
 
     save_graph(dot, output_filename, view=True, format=output_format)
 

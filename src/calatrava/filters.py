@@ -1,42 +1,98 @@
 
+import abc
+import json
 
-# TODO: add methods and attributes filters
 
+def apply_filters(filters, classes):
+    filtered_classes = classes.copy()
 
-def apply_filters(filters, existing_classes):
-    filtered_cls_names = []
     for filter_ in filters:
-        filtered_cls_names.extend(filter_(existing_classes))
+        filter_.filter(filtered_classes)
 
-    return filtered_cls_names
-
-
-def remove_parametrizer(existing_classes):
-    parametrizer_name = 'tests.conftest.Parametrizer'
-
-    if parametrizer_name in existing_classes:
-        del existing_classes[parametrizer_name]
-
-    return [parametrizer_name]
+    return filtered_classes
 
 
-def remove_metric(existing_classes):
+class Filter(metaclass=abc.ABCMeta):
 
-    filtered_cls_names = []
-    for key in list(existing_classes.keys()):
-        if not ('Metric' not in key and 'Connection' not in key):
-            filtered_cls_names.append(key)
-            del existing_classes[key]
-
-    return filtered_cls_names
+    @abc.abstractmethod
+    def filter(self, classes):
+        pass
 
 
-def remove_not_metric(existing_classes):
-    # filter not metric out
-    filtered_cls_names = []
-    for key in list(existing_classes.keys()):
-        if 'Metric' not in key and 'Connection' not in key:
-            filtered_cls_names.append(key)
-            del existing_classes[key]
+def load_filters_from_json(filename):
 
-    return filtered_cls_names
+    with open(filename) as file:
+        filters_info = json.load(file)
+
+    filters_ls = filters_info.get('filters')
+    # TODO: load non-calatrava filters
+    # TODO: add concept of order? (useful for non-calatrava)
+    return load_filters_from_ls(filters_ls)
+
+
+def load_filters_from_ls(filters_meta):
+    return [load_filter_from_dict(filter_meta) for filter_meta in filters_meta if filter_meta.get('active', True)]
+
+
+def load_filter_from_dict(filter_meta):
+    Filter_ = globals()[filter_meta.get('type')]
+
+    kwargs = filter_meta.copy()
+    del kwargs['type']
+    kwargs.pop('active', None)
+
+    return Filter_(**kwargs)
+
+
+class ByNameRemover(Filter):
+
+    def __init__(self, names, attr_name='full_name'):
+        self.names = names
+        self.attr_name = attr_name
+
+    def filter(self, classes):
+        for class_ in classes.copy():
+            for name in self.names:
+                if getattr(class_, self.attr_name) == name:
+                    classes.remove(class_)
+                    break
+
+
+class ByPartialNameRemover(Filter):
+
+    def __init__(self, names, attr_name='full_name'):
+        self.names = names
+        self.attr_name = attr_name
+
+    def filter(self, classes):
+        for class_ in classes.copy():
+            for name in self.names:
+                if name in getattr(class_, self.attr_name):
+                    classes.remove(class_)
+                    break
+
+
+class ByPartialNameKeeper(Filter):
+    def __init__(self, names, attr_name='full_name', exceptions=()):
+        self.names = names
+        self.attr_name = attr_name
+        self.exceptions = set(exceptions)
+
+    def filter(self, classes):
+        for class_ in classes.copy():
+            for name in self.names:
+                if name not in getattr(class_, self.attr_name):
+                    classes.remove(class_)
+                    break
+
+
+class LoneParentsRemover(Filter):
+
+    def filter(self, classes):
+        for class_ in classes.copy():
+            if class_.children:
+                for child in class_.children:
+                    if child in classes:
+                        break
+                else:
+                    classes.remove(class_)

@@ -1,6 +1,8 @@
 
 import graphviz
 
+from calatrava.filters import apply_filters
+
 
 def _get_block_str(block, symbol=''):
     if len(block) == 0:
@@ -48,19 +50,22 @@ class RecordCreator:
         return [f'{method.short_name}()' for method in methods]
 
 
-def create_graph(classes, record_creator=None):
+def create_graph(classes, record_creator=None, filters=()):
     if record_creator is None:
         record_creator = RecordCreator()
 
-    # TODO: apply filters
+    filtered_classes = apply_filters(filters, classes)
 
     dot = graphviz.Digraph()
 
-    for class_ in classes:
+    for class_ in filtered_classes:
         record_creator.create_node(dot, class_)
 
-    for class_ in classes:
+    for class_ in filtered_classes:
         for base_class in class_.bases:
+            if base_class not in filtered_classes:
+                continue
+
             dot.edge(base_class.id, class_.id, dir='back', arrowtail='empty')
 
     return dot

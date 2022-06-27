@@ -21,8 +21,6 @@ def find_by_name(root, type_, name):
 
 
 def find_in_imports(root, search_name):
-    # TODO: need to move to node visitor?
-
     for node in ast.walk(root):
         if not isinstance(node, (ast.Import, ast.ImportFrom)):
             continue
@@ -145,8 +143,6 @@ class ModuleVisitor:
         else:
             class_ = self.class_visitor.visit(node)
 
-        # TODO: try in assignments
-
         return class_
 
     def find_all_classes(self):
@@ -263,8 +259,7 @@ class PackageVisitor:
             i += 1
 
             if i > len(full_name_ls):
-                # TODO: make these records different, but move on
-                # TODO: not an exception?
+                # TODO: make these records different, but no exception?
                 raise Exception(f'Cannot find `{full_name}`')
 
             module_name = '.'.join(full_name_ls[:-i])
@@ -397,7 +392,6 @@ TmpBase = namedtuple('TmpBase', ['name', 'is_import'])
 
 
 class Class:
-    # TODO: move methods to class visitor? note it is not the same as e.g. ModuleVisitor
 
     def __init__(self, name, module):
         self.module = module
@@ -408,6 +402,8 @@ class Class:
         self.cls_attrs = []
         self._tmp_bases = []
         self.bases = []
+
+        self.children = []
 
     @property
     def all_attrs(self):
@@ -434,7 +430,10 @@ class Class:
 
     @property
     def full_name(self):
-        return f'{self.module.full_name}.{self.name}'
+        if self.module:
+            return f'{self.module.full_name}.{self.name}'
+        else:
+            return self.name
 
     @property
     def short_name(self):
@@ -476,8 +475,9 @@ class Class:
     def reset_tmp_bases(self):
         self._tmp_bases = []
 
-    def add_bases(self, bases):
-        self.bases.extend(bases)
+    def add_base(self, base):
+        self.bases.append(base)
+        base.add_child(self)
 
     def add_attr(self, attr_name):
         self.attrs.append(attr_name)
@@ -487,6 +487,9 @@ class Class:
 
     def add_method(self, method):
         self.methods.append(method)
+
+    def add_child(self, child):
+        self.children.append(child)
 
 
 class Method:
@@ -628,7 +631,6 @@ class ClassVisitor(ast.NodeVisitor):
     def update_inheritance(self):
         done = True
         for class_ in self.classes:
-            bases = []
             for tmp_base in class_.get_tmp_bases():
                 done = False
                 if tmp_base.is_import:
@@ -636,9 +638,8 @@ class ClassVisitor(ast.NodeVisitor):
                 else:
                     base = self.module.visitor.find_class(tmp_base.name)
 
-                bases.append(base)
+                class_.add_base(base)
 
-            class_.add_bases(bases)
             class_.reset_tmp_bases()
 
         return done
