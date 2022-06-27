@@ -56,8 +56,7 @@ def uml(args, output_filename, output_format, filters_filename):
 
     classes = list(package_manager.get_classes().values())
 
-    if filters_filename:
-        filters = load_filters_from_json(filters_filename) if filters_filename else []
+    filters = load_filters_from_json(filters_filename) if filters_filename else []
 
     dot = create_graph(classes, filters=filters)
 
