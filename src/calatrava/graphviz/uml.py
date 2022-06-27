@@ -52,6 +52,8 @@ def create_graph(classes, record_creator=None):
     if record_creator is None:
         record_creator = RecordCreator()
 
+    # TODO: apply filters
+
     dot = graphviz.Digraph()
 
     for class_ in classes:

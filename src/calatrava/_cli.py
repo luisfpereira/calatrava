@@ -59,7 +59,7 @@ def main_cli():
 def uml(args, output_filename, output_format):
     """Builds UML diagram.
     """
-    from calatrava.parser.ast_uml import (
+    from calatrava.parser.ast.uml import (
         Package,
         PackageManager,
     )
