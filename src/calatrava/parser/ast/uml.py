@@ -451,10 +451,13 @@ class Class:
     def __repr__(self):
         return f'<class: {self.short_name}>'
 
-    def add_tmp_bases(self, bases):
+    def add_tmp_bases(self, node):
+        # ast.ClassDef
 
-        bases_ = []
-        for node in bases:
+        bases = []
+        for node in node.bases + node.keywords:
+            if isinstance(node, ast.keyword):
+                node = node.value
 
             if isinstance(node, ast.Name):
                 name = node.id
@@ -463,9 +466,9 @@ class Class:
                 name = collect_attr_full_name(node)
                 is_import = True
 
-            bases_.append(TmpBase(name, is_import))
+            bases.append(TmpBase(name, is_import))
 
-        self._tmp_bases.extend(bases_)
+        self._tmp_bases.extend(bases)
 
     def get_tmp_bases(self):
         return self._tmp_bases
@@ -591,7 +594,7 @@ class ClassVisitor(ast.NodeVisitor):
     def visit_ClassDef(self, node):
         class_ = self.Class(self._get_obj_name(node), self.module)
 
-        class_.add_tmp_bases(node.bases)
+        class_.add_tmp_bases(node)
 
         self.stack.append(class_)
         self.classes.append(class_)
