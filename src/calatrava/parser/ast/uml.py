@@ -11,7 +11,9 @@ import logging
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 
 
-PYTHON_PROTECTED_CLASSES = ['Exception', 'type']
+PYTHON_PROTECTED_CLASSES = (
+    'Exception', 'type', 'object', 'dict', 'list', 'tuple', 'set',
+)
 
 
 def find_by_name(root, type_, name):
@@ -20,7 +22,7 @@ def find_by_name(root, type_, name):
             return node
 
 
-def find_in_imports(root, search_name):
+def find_in_imports(root, search_name, module):
     for node in ast.walk(root):
         if not isinstance(node, (ast.Import, ast.ImportFrom)):
             continue
@@ -31,8 +33,18 @@ def find_in_imports(root, search_name):
                     # TODO: is this enough?
                     return name.name
                 else:
-                    # TODO: handle local imports
-                    return f'{node.module}.{name.name}'
+
+                    if node.level:  # handle local imports
+                        level = -(node.level - 1) if module.is_init else -node.level
+                        if level == 0:
+                            level = None
+                        node_module = '.'.join(module.full_name.split('.')[:level])
+                        if node.module:
+                            node_module += f'.{node.module}'
+                    else:
+                        node_module = node.module
+
+                    return f'{node_module}.{name.name}'
 
 
 class _AttributeVisitor(ast.NodeVisitor):
@@ -135,7 +147,10 @@ class ModuleVisitor:
 
         if node is None:
             # try in imports
-            full_name = find_in_imports(self.root, name)
+            full_name = find_in_imports(self.root, name, self.module)
+            if full_name is None:  # not found (e.g. assignment)
+                return self.class_visitor.Class(name, self.module,
+                                                found=False)
 
             class_ = self.module.package.visitor.manager.find_class(full_name)
             self.import_class_map[name] = class_
@@ -184,7 +199,7 @@ class PackageManager:
         package = self._get_package(full_name)
         if package is None:
             class_ = self._unknown_classes.get(full_name,
-                                               Class(full_name, None))
+                                               self.Class(full_name, None))
             self._unknown_classes[full_name] = class_
             return class_
         else:
@@ -370,15 +385,26 @@ class Module:
         self.visitor = ModuleVisitor(self)
 
     @property
+    def is_init(self):
+        return os.path.exists(self._get_init_path())
+
+    @property
     def package_root(self):
         return self.package.root_path
 
+    def _get_path_beginning(self):
+        return self.package_root / f"{self.full_name.replace('.', os.path.sep)}"
+
+    def _get_init_path(self, path_beginning=None):
+        path_beginning = path_beginning or self._get_path_beginning()
+        return f"{path_beginning}{os.path.sep}__init__.py"
+
     @property
     def path(self):
-        name = self.package_root / f"{self.full_name.replace('.', os.path.sep)}"
+        name = self._get_path_beginning()
         path = f"{name}.py"
 
-        return path if os.path.exists(path) else f"{name}{os.path.sep}__init__.py"
+        return path if os.path.exists(path) else self._get_init_path(name)
 
     @property
     def classes(self):
@@ -393,7 +419,7 @@ TmpBase = namedtuple('TmpBase', ['name', 'is_import'])
 
 class Class:
 
-    def __init__(self, name, module):
+    def __init__(self, name, module, found=True):
         self.module = module
         self.name = name
         self.attrs = []
@@ -404,6 +430,7 @@ class Class:
         self.bases = []
 
         self.children = []
+        self._found = found
 
     @property
     def all_attrs(self):
@@ -445,7 +472,7 @@ class Class:
 
     @property
     def found(self):
-        return self.module is not None
+        return self.module is not None and self._found
 
     def __repr__(self):
         return f'<class: {self.short_name}>'
