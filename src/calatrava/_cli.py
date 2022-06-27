@@ -7,6 +7,8 @@ from calatrava.filters import load_filters_from_json
 from calatrava.graphviz.uml import (
     create_graph,
     save_graph,
+)
+from calatrava.parser.ast.uml import (
     Package,
     PackageManager,
 )
