@@ -149,8 +149,11 @@ class ModuleVisitor:
             # try in imports
             full_name = find_in_imports(self.root, name, self.module)
             if full_name is None:  # not found (e.g. assignment)
-                return self.class_visitor.Class(name, self.module,
-                                                found=False)
+                # TODO: check star imports
+                class_ = self.class_visitor.Class(name, self.module,
+                                                  found=False)
+                self.module.package.visitor.manager.add_unknown_class(class_)
+                return class_
 
             class_ = self.module.package.visitor.manager.find_class(full_name)
             self.import_class_map[name] = class_
@@ -191,6 +194,9 @@ class PackageManager:
 
         return package
 
+    def add_unknown_class(self, class_):
+        self._unknown_classes[class_.full_name] = class_
+
     @property
     def packages(self):
         return {package.name: package for package in self._packages_ls}
@@ -200,7 +206,7 @@ class PackageManager:
         if package is None:
             class_ = self._unknown_classes.get(full_name,
                                                self.Class(full_name, None))
-            self._unknown_classes[full_name] = class_
+            self.add_unknown_class(class_)
             return class_
         else:
             return package.visitor.find_class(full_name)
@@ -344,7 +350,8 @@ class Package:
 
     def __init__(self, path):
 
-        if not os.path.exists(path):
+        path_exists = os.path.exists(path)
+        if not path_exists or (path_exists and not os.path.isdir(path)):
             # FIXME: will fail in tons of cases
             package_name = path
             package = pkgutil.get_loader(package_name)
@@ -432,6 +439,9 @@ class Class:
         self.children = []
         self._found = found
 
+    def __repr__(self):
+        return f'<class: {self.full_name}>'
+
     @property
     def all_attrs(self):
         return self.attrs + self.base_attrs
@@ -468,14 +478,11 @@ class Class:
 
     @property
     def id(self):
-        return self.name.replace('.', '_')
+        return self.full_name.replace('.', '_')
 
     @property
     def found(self):
         return self.module is not None and self._found
-
-    def __repr__(self):
-        return f'<class: {self.short_name}>'
 
     def add_tmp_bases(self, node):
         # ast.ClassDef

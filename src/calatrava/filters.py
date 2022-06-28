@@ -4,12 +4,10 @@ import json
 
 
 def apply_filters(filters, classes):
-    filtered_classes = classes.copy()
-
     for filter_ in filters:
-        filter_.filter(filtered_classes)
+        filter_.filter(classes)
 
-    return filtered_classes
+    return classes
 
 
 class Filter(metaclass=abc.ABCMeta):
