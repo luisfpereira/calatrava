@@ -45,7 +45,6 @@ def find_in_imports(root, search_name, module_name, module_is_init=False):
         for name in node.names:
             if search_name == name.name or search_name == name.asname:
                 if isinstance(node, ast.Import):
-                    # TODO: is this enough?
                     return name.name
                 else:  # ast.ImportFrom
                     node_module = _get_import_from_module_name(
@@ -150,8 +149,12 @@ class ModuleVisitor:
 
         return root
 
-    def find_class(self, name, trial=False):
-        # TODO: merge 
+    def find_class(self, name, visited=()):
+        # visited only for possible recursion due to star imports
+        if self.module in visited:
+            return
+
+        # TODO: merge
         # try in existing
         class_ = self.module.classes.get(name, None)
         if class_ is not None:
@@ -190,18 +193,23 @@ class ModuleVisitor:
             return class_
 
         # try in start imports
-        if not trial:  # only once to avoid recursion
-            star_imports = collect_star_imports(self.root, self.module.full_name,
-                                                self.module.is_init)
+        star_imports = collect_star_imports(self.root, self.module.full_name,
+                                            self.module.is_init)
+        if star_imports:
+            if visited:
+                visited.append(self.module)
+            else:
+                visited = [self.module]
+
             for star_import in star_imports:
                 full_name = f'{star_import}.{name}'
                 class_ = self.module.package.visitor.manager.find_class(
-                    full_name, trial=True)
+                    full_name, visited=visited)
                 if class_ is not None:
                     self.import_class_map[name] = class_
                     return class_
 
-        if not trial:
+        if not visited:
             # not found (e.g. assignment)
             class_ = self.class_visitor.Class(name, self.module,
                                               found=False)
@@ -244,13 +252,13 @@ class PackageManager:
     def add_unknown_class(self, class_):
         self._unknown_classes[class_.full_name] = class_
 
-    @property
+    @ property
     def packages(self):
         return {package.name: package for package in self._packages_ls}
 
-    def find_class(self, full_name, trial=False):
+    def find_class(self, full_name, visited=()):
         package = self._get_package(full_name)
-        if package is None and trial:
+        if package is None and visited:
             return
         elif package is None:
             class_ = self._unknown_classes.get(full_name,
@@ -258,7 +266,7 @@ class PackageManager:
             self.add_unknown_class(class_)
             return class_
         else:
-            return package.visitor.find_class(full_name, trial=trial)
+            return package.visitor.find_class(full_name, visited=visited)
 
     def find_module(self, full_name):
         package = self._get_package(full_name, raise_=True)
@@ -322,24 +330,22 @@ class PackageVisitor:
 
         return module
 
-    def find_class(self, full_name, trial=False):
+    def find_class(self, full_name, visited=()):
         full_name_ls = full_name.split('.')
         i = 0
         while True:
             i += 1
 
             if i > len(full_name_ls):
-                # TODO: make these records different, but no exception?
                 raise Exception(f'Cannot find `{full_name}`')
 
             module_name = '.'.join(full_name_ls[:-i])
             if module_name in self.all_modules_names:
-                # TODO: handle not found
                 class_name = '.'.join(full_name_ls[-i:])
                 break
 
         module = self._get_module(module_name)
-        return module.visitor.find_class(class_name, trial=trial)
+        return module.visitor.find_class(class_name, visited=visited)
 
     def find_module(self, full_name):
         module = self._get_module(full_name)
@@ -412,15 +418,15 @@ class Package:
 
         self.visitor = PackageVisitor(self)
 
-    @property
+    @ property
     def modules(self):
         return {module.full_name: module for module in self.visitor.modules}
 
-    @property
+    @ property
     def name(self):
         return str(self.path).split(os.path.sep)[-1]
 
-    @property
+    @ property
     def root_path(self):
         return self.path.parent
 
@@ -440,11 +446,11 @@ class Module:
 
         self.visitor = ModuleVisitor(self)
 
-    @property
+    @ property
     def is_init(self):
         return os.path.exists(self._get_init_path())
 
-    @property
+    @ property
     def package_root(self):
         return self.package.root_path
 
@@ -455,14 +461,14 @@ class Module:
         path_beginning = path_beginning or self._get_path_beginning()
         return f"{path_beginning}{os.path.sep}__init__.py"
 
-    @property
+    @ property
     def path(self):
         name = self._get_path_beginning()
         path = f"{name}.py"
 
         return path if os.path.exists(path) else self._get_init_path(name)
 
-    @property
+    @ property
     def classes(self):
         return {class_.name: class_ for class_ in self.visitor.classes}
 
@@ -491,11 +497,11 @@ class Class:
     def __repr__(self):
         return f'<class: {self.full_name}>'
 
-    @property
+    @ property
     def all_attrs(self):
         return self.attrs + self.base_attrs
 
-    @property
+    @ property
     def base_attrs(self):
         attrs = []
         for base in self.bases:
@@ -503,33 +509,33 @@ class Class:
 
         return attrs
 
-    @property
+    @ property
     def all_methods(self):
         return self.methods + self.base_methods
 
-    @property
+    @ property
     def base_methods(self):
         methods = []
         for base in self.bases:
             methods.extend(base.all_methods)
         return methods
 
-    @property
+    @ property
     def full_name(self):
         if self.module:
             return f'{self.module.full_name}.{self.name}'
         else:
             return self.name
 
-    @property
+    @ property
     def short_name(self):
         return self.name.split('.')[-1]
 
-    @property
+    @ property
     def id(self):
         return self.full_name.replace('.', '_')
 
-    @property
+    @ property
     def found(self):
         return self.module is not None and self._found
 
@@ -585,11 +591,11 @@ class Method:
         self.local_vars = []
         self.decorator_list = []
 
-    @property
+    @ property
     def full_name(self):
         return f'{self.class_.module.full_name}.{self.name}'
 
-    @property
+    @ property
     def short_name(self):
         return self.name.split('.')[-1]
 
@@ -605,11 +611,11 @@ class Method:
 
         return f'<{type_}: {self.short_name}>'
 
-    @property
+    @ property
     def is_property(self):
         return 'property' in self.decorator_list
 
-    @property
+    @ property
     def is_classmethod(self):
         return 'classmethod' in self.decorator_list
 
@@ -637,19 +643,19 @@ class ClassVisitor(ast.NodeVisitor):
         self.Class = Class
         self.Method = Method
 
-    @property
+    @ property
     def in_class(self):
         return isinstance(self.stack[-1], Class)
 
-    @property
+    @ property
     def current_class(self):
         return self._get_last_from_stack(self.Class)
 
-    @property
+    @ property
     def current_method(self):
         return self._get_last_from_stack(self.Method)
 
-    @property
+    @ property
     def current_obj(self):
         return self.stack[-1]
 
