@@ -1,9 +1,7 @@
 
-
 import click
 
-
-from calatrava.filters import load_filters_from_json
+from calatrava.config import load_from_config
 from calatrava.graphviz.uml import (
     create_graph,
     save_graph,
@@ -37,8 +35,8 @@ def main_cli():
 @click.option("--output-filename", "-o", type=str,
               default="calatrava_tree")
 @click.option("--output-format", type=str, default='svg')
-@click.option("--filters-filename", '-f', type=str, default='')
-def uml(args, output_filename, output_format, filters_filename):
+@click.option("--config", '-c', type=str, default=None)
+def uml(args, output_filename, output_format, config):
     """Builds UML diagram.
     """
     packages_paths, imports = _handle_variadic_input(args)
@@ -54,11 +52,12 @@ def uml(args, output_filename, output_format, filters_filename):
 
     package_manager.update_inheritance()
 
-    classes = list(package_manager.get_classes().values())
+    classes = sorted(list(package_manager.get_classes().values()),
+                     key=lambda x: x.name)
 
-    filters = load_filters_from_json(filters_filename) if filters_filename else []
+    record_creator, filters = load_from_config(config)
 
-    dot = create_graph(classes, filters=filters)
+    dot = create_graph(classes, filters=filters, record_creator=record_creator)
 
     save_graph(dot, output_filename, view=True, format=output_format)
 

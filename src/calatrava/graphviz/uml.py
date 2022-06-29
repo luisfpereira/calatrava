@@ -10,13 +10,23 @@ def _get_block_str(block, symbol=''):
     return ''
 
 
+def load_record_creator_from_dict(metadata):
+    # TODO: external
+    RecordCreator_ = globals()[metadata.get('type', 'RecordCreator')]
+
+    kwargs = metadata.copy()
+    kwargs.pop('type', None)
+
+    return RecordCreator_(**kwargs)
+
+
 class RecordCreator:
 
     def __init__(self, class_attr_name='name', show_cls_attrs=False,
-                 sep_props=False, styles=None):
+                 separate_props=False, styles=None):
         self.class_attr_name = class_attr_name
         self.show_cls_attrs = show_cls_attrs
-        self.sep_props = sep_props
+        self.separate_props = separate_props
 
         self.styles = {} if styles is None else styles
 
@@ -69,7 +79,7 @@ class RecordCreator:
 
     def _get_methods_str(self, class_):
         methods_str = ''
-        if self.sep_props:
+        if self.separate_props:
             props = [method for method in class_.methods if method.is_property]
             base_props = [method for method in class_.base_methods if method.is_property]
 
@@ -98,9 +108,12 @@ class RecordCreator:
         return [f'{method.short_name}{suffix}' for method in methods]
 
 
+DEFAULT_RECORD_CREATOR = RecordCreator
+
+
 def create_graph(classes, record_creator=None, filters=()):
     if record_creator is None:
-        record_creator = RecordCreator()
+        record_creator = DEFAULT_RECORD_CREATOR()
 
     filtered_classes = apply_filters(filters, classes)
 
