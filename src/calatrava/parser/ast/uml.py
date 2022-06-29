@@ -149,29 +149,17 @@ class ModuleVisitor:
 
         return root
 
+    @property
+    def _already_found(self):
+        return self.module.classes | self.import_class_map | self.not_found | self.not_found_trial
+
     def find_class(self, name, visited=()):
         # visited only for possible recursion due to star imports
         if self.module in visited:
             return
 
-        # TODO: merge
-        # try in existing
-        class_ = self.module.classes.get(name, None)
-        if class_ is not None:
-            return class_
-
-        # try in import map
-        class_ = self.import_class_map.get(name, None)
-        if class_ is not None:
-            return class_
-
-        # try in not found map
-        class_ = self.not_found.get(name, None)
-        if class_ is not None:
-            return class_
-
-        # try in not found trial
-        class_ = self.not_found_trial.get(name, None)
+        # try in already found
+        class_ = self._already_found.get(name, None)
         if class_ is not None:
             return class_
 
