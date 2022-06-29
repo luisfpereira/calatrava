@@ -1,5 +1,6 @@
 
 import click
+import logging
 
 from calatrava.config import load_from_config
 from calatrava.graphviz.uml import (
@@ -60,6 +61,7 @@ def uml(args, output_filename, output_format, config):
     dot = create_graph(classes, filters=filters, record_creator=record_creator)
 
     save_graph(dot, output_filename, view=True, format=output_format)
+    logging.info(f"Created `{output_filename}.{output_format}`")
 
 
 main_cli.add_command(uml)

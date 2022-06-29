@@ -133,5 +133,5 @@ def create_graph(classes, record_creator=None, filters=()):
     return dot
 
 
-def save_graph(dot, filename, view=True, format='svg', **kwargs):
-    dot.render(filename, view=view, format=format, **kwargs)
+def save_graph(dot, filename, view=True, format='svg', cleanup=True, **kwargs):
+    dot.render(filename, view=view, format=format, cleanup=cleanup, **kwargs)
