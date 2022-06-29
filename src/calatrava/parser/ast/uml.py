@@ -240,7 +240,7 @@ class PackageManager:
     def add_unknown_class(self, class_):
         self._unknown_classes[class_.full_name] = class_
 
-    @ property
+    @property
     def packages(self):
         return {package.name: package for package in self._packages_ls}
 
@@ -406,15 +406,15 @@ class Package:
 
         self.visitor = PackageVisitor(self)
 
-    @ property
+    @property
     def modules(self):
         return {module.full_name: module for module in self.visitor.modules}
 
-    @ property
+    @property
     def name(self):
         return str(self.path).split(os.path.sep)[-1]
 
-    @ property
+    @property
     def root_path(self):
         return self.path.parent
 
@@ -434,11 +434,11 @@ class Module:
 
         self.visitor = ModuleVisitor(self)
 
-    @ property
+    @property
     def is_init(self):
         return os.path.exists(self._get_init_path())
 
-    @ property
+    @property
     def package_root(self):
         return self.package.root_path
 
@@ -449,14 +449,14 @@ class Module:
         path_beginning = path_beginning or self._get_path_beginning()
         return f"{path_beginning}{os.path.sep}__init__.py"
 
-    @ property
+    @property
     def path(self):
         name = self._get_path_beginning()
         path = f"{name}.py"
 
         return path if os.path.exists(path) else self._get_init_path(name)
 
-    @ property
+    @property
     def classes(self):
         return {class_.name: class_ for class_ in self.visitor.classes}
 
@@ -485,11 +485,11 @@ class Class:
     def __repr__(self):
         return f'<class: {self.full_name}>'
 
-    @ property
+    @property
     def all_attrs(self):
         return self.attrs + self.base_attrs
 
-    @ property
+    @property
     def base_attrs(self):
         attrs = []
         for base in self.bases:
@@ -497,35 +497,43 @@ class Class:
 
         return attrs
 
-    @ property
+    @property
     def all_methods(self):
         return self.methods + self.base_methods
 
-    @ property
+    @property
     def base_methods(self):
         methods = []
         for base in self.bases:
             methods.extend(base.all_methods)
         return methods
 
-    @ property
+    @property
     def full_name(self):
         if self.module:
             return f'{self.module.full_name}.{self.name}'
         else:
             return self.name
 
-    @ property
+    @property
     def short_name(self):
         return self.name.split('.')[-1]
 
-    @ property
+    @property
     def id(self):
         return self.full_name.replace('.', '_')
 
-    @ property
+    @property
     def found(self):
-        return self.module is not None and self._found
+        return self._found and self.module is not None
+
+    @property
+    def is_abstract(self):
+        for class_ in self.bases:
+            if class_.full_name.startswith('abc.'):
+                return True
+        return False
+    
 
     def add_tmp_bases(self, node):
         # ast.ClassDef
@@ -579,11 +587,11 @@ class Method:
         self.local_vars = []
         self.decorator_list = []
 
-    @ property
+    @property
     def full_name(self):
         return f'{self.class_.module.full_name}.{self.name}'
 
-    @ property
+    @property
     def short_name(self):
         return self.name.split('.')[-1]
 
@@ -599,11 +607,11 @@ class Method:
 
         return f'<{type_}: {self.short_name}>'
 
-    @ property
+    @property
     def is_property(self):
         return 'property' in self.decorator_list
 
-    @ property
+    @property
     def is_classmethod(self):
         return 'classmethod' in self.decorator_list
 
@@ -631,19 +639,19 @@ class ClassVisitor(ast.NodeVisitor):
         self.Class = Class
         self.Method = Method
 
-    @ property
+    @property
     def in_class(self):
         return isinstance(self.stack[-1], Class)
 
-    @ property
+    @property
     def current_class(self):
         return self._get_last_from_stack(self.Class)
 
-    @ property
+    @property
     def current_method(self):
         return self._get_last_from_stack(self.Method)
 
-    @ property
+    @property
     def current_obj(self):
         return self.stack[-1]
 
