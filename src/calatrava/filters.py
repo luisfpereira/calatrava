@@ -1,6 +1,5 @@
 
 import abc
-import json
 
 
 def apply_filters(filters, classes):
@@ -14,18 +13,7 @@ class Filter(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def filter(self, classes):
-        pass
-
-
-def load_filters_from_json(filename):
-
-    with open(filename) as file:
-        filters_info = json.load(file)
-
-    filters_ls = filters_info.get('filters')
-    # TODO: load non-calatrava filters
-    # TODO: add concept of order? (useful for non-calatrava)
-    return load_filters_from_ls(filters_ls)
+        return classes
 
 
 def load_filters_from_ls(filters_meta):
@@ -42,46 +30,65 @@ def load_filter_from_dict(filter_meta):
     return Filter_(**kwargs)
 
 
+class PackageRemover(Filter):
+    def __init__(self, names):
+        self.names = set(names)
+
+    def filter(self, classes):
+        for class_ in classes.copy():
+            package_name = class_.full_name.split('.')[0]
+            if package_name in self.names:
+                classes.remove(class_)
+
+        return classes
+
+
 class ByNameRemover(Filter):
 
     def __init__(self, names, attr_name='full_name'):
-        self.names = names
+        self.names = set(names)
         self.attr_name = attr_name
 
     def filter(self, classes):
         for class_ in classes.copy():
-            for name in self.names:
-                if getattr(class_, self.attr_name) == name:
-                    classes.remove(class_)
-                    break
+            if getattr(class_, self.attr_name) in self.names:
+                classes.remove(class_)
+
+        return classes
 
 
 class ByPartialNameRemover(Filter):
 
     def __init__(self, names, attr_name='full_name'):
-        self.names = names
+        self.names = set(names)
         self.attr_name = attr_name
 
     def filter(self, classes):
         for class_ in classes.copy():
+            class_name = getattr(class_, self.attr_name)
             for name in self.names:
-                if name in getattr(class_, self.attr_name):
+                if name in class_name:
                     classes.remove(class_)
                     break
+
+        return classes
 
 
 class ByPartialNameKeeper(Filter):
     def __init__(self, names, attr_name='full_name', exceptions=()):
-        self.names = names
+        self.names = set(names)
         self.attr_name = attr_name
         self.exceptions = set(exceptions)
 
     def filter(self, classes):
         for class_ in classes.copy():
+            class_name = getattr(class_, self.attr_name)
             for name in self.names:
-                if name not in getattr(class_, self.attr_name):
+                if name not in class_name:
                     classes.remove(class_)
                     break
+
+        return classes
 
 
 class LoneParentsRemover(Filter):
@@ -94,3 +101,5 @@ class LoneParentsRemover(Filter):
                         break
                 else:
                     classes.remove(class_)
+
+        return classes
