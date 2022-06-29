@@ -22,7 +22,22 @@ def find_by_name(root, type_, name):
             return node
 
 
-def find_in_imports(root, search_name, module):
+def _get_import_from_module_name(node, module_name, module_is_init=False):
+    # ast.ImportFrom
+    if node.level:  # handle local imports
+        level = -(node.level - 1) if module_is_init else -node.level
+        if level == 0:
+            level = None
+        node_module = '.'.join(module_name.split('.')[:level])
+        if node.module:
+            node_module += f'.{node.module}'
+    else:
+        node_module = node.module
+
+    return node_module
+
+
+def find_in_imports(root, search_name, module_name, module_is_init=False):
     for node in ast.walk(root):
         if not isinstance(node, (ast.Import, ast.ImportFrom)):
             continue
@@ -32,19 +47,25 @@ def find_in_imports(root, search_name, module):
                 if isinstance(node, ast.Import):
                     # TODO: is this enough?
                     return name.name
-                else:
-
-                    if node.level:  # handle local imports
-                        level = -(node.level - 1) if module.is_init else -node.level
-                        if level == 0:
-                            level = None
-                        node_module = '.'.join(module.full_name.split('.')[:level])
-                        if node.module:
-                            node_module += f'.{node.module}'
-                    else:
-                        node_module = node.module
+                else:  # ast.ImportFrom
+                    node_module = _get_import_from_module_name(
+                        node, module_name, module_is_init)
 
                     return f'{node_module}.{name.name}'
+
+
+def collect_star_imports(root, module_name, module_is_init):
+    star_imports = []
+    for node in ast.walk(root):
+        if not isinstance(node, ast.ImportFrom):
+            continue
+
+        if node.names[0].name == '*':
+            module_name = _get_import_from_module_name(
+                node, module_name, module_is_init)
+            star_imports.append(module_name)
+
+    return star_imports
 
 
 class _AttributeVisitor(ast.NodeVisitor):
@@ -116,6 +137,8 @@ class ModuleVisitor:
         self.root = self._load_root()
 
         self.import_class_map = {}
+        self.not_found = {}
+        self.not_found_trial = {}
 
     @property
     def classes(self):
@@ -127,7 +150,8 @@ class ModuleVisitor:
 
         return root
 
-    def find_class(self, name):
+    def find_class(self, name, trial=False):
+        # TODO: merge 
         # try in existing
         class_ = self.module.classes.get(name, None)
         if class_ is not None:
@@ -138,30 +162,53 @@ class ModuleVisitor:
         if class_ is not None:
             return class_
 
+        # try in not found map
+        class_ = self.not_found.get(name, None)
+        if class_ is not None:
+            return class_
+
+        # try in not found trial
+        class_ = self.not_found_trial.get(name, None)
+        if class_ is not None:
+            return class_
+
         # try in python protected names
         if name in PYTHON_PROTECTED_CLASSES:
             return self.module.package.visitor.manager.find_class(name)
 
         # try in definitions
         node = find_by_name(self.root, ast.ClassDef, name)
+        if node is not None:
+            return self.class_visitor.visit(node)
 
-        if node is None:
-            # try in imports
-            full_name = find_in_imports(self.root, name, self.module)
-            if full_name is None:  # not found (e.g. assignment)
-                # TODO: check star imports
-                class_ = self.class_visitor.Class(name, self.module,
-                                                  found=False)
-                self.module.package.visitor.manager.add_unknown_class(class_)
-                return class_
-
+        # try in imports
+        full_name = find_in_imports(
+            self.root, name, self.module.full_name, self.module.is_init)
+        if full_name is not None:
             class_ = self.module.package.visitor.manager.find_class(full_name)
             self.import_class_map[name] = class_
+            return class_
 
-        else:
-            class_ = self.class_visitor.visit(node)
+        # try in start imports
+        if not trial:  # only once to avoid recursion
+            star_imports = collect_star_imports(self.root, self.module.full_name,
+                                                self.module.is_init)
+            for star_import in star_imports:
+                full_name = f'{star_import}.{name}'
+                class_ = self.module.package.visitor.manager.find_class(
+                    full_name, trial=True)
+                if class_ is not None:
+                    self.import_class_map[name] = class_
+                    return class_
 
-        return class_
+        if not trial:
+            # not found (e.g. assignment)
+            class_ = self.class_visitor.Class(name, self.module,
+                                              found=False)
+            self.module.package.visitor.manager.add_unknown_class(class_)
+            self.not_found[name] = class_
+
+            return class_
 
     def find_all_classes(self):
         class_nodes = [node for node in self.root.body if isinstance(node, ast.ClassDef)]
@@ -201,15 +248,17 @@ class PackageManager:
     def packages(self):
         return {package.name: package for package in self._packages_ls}
 
-    def find_class(self, full_name):
+    def find_class(self, full_name, trial=False):
         package = self._get_package(full_name)
-        if package is None:
+        if package is None and trial:
+            return
+        elif package is None:
             class_ = self._unknown_classes.get(full_name,
                                                self.Class(full_name, None))
             self.add_unknown_class(class_)
             return class_
         else:
-            return package.visitor.find_class(full_name)
+            return package.visitor.find_class(full_name, trial=trial)
 
     def find_module(self, full_name):
         package = self._get_package(full_name, raise_=True)
@@ -273,7 +322,7 @@ class PackageVisitor:
 
         return module
 
-    def find_class(self, full_name):
+    def find_class(self, full_name, trial=False):
         full_name_ls = full_name.split('.')
         i = 0
         while True:
@@ -290,7 +339,7 @@ class PackageVisitor:
                 break
 
         module = self._get_module(module_name)
-        return module.visitor.find_class(class_name)
+        return module.visitor.find_class(class_name, trial=trial)
 
     def find_module(self, full_name):
         module = self._get_module(full_name)
