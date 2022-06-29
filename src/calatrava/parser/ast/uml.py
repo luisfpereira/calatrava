@@ -8,8 +8,6 @@ from collections import namedtuple
 import pkgutil
 import logging
 
-logging.basicConfig(format='%(message)s', level=logging.INFO)
-
 
 PYTHON_PROTECTED_CLASSES = (
     'Exception', 'type', 'object', 'dict', 'list', 'tuple', 'set',
@@ -533,7 +531,6 @@ class Class:
             if class_.full_name.startswith('abc.'):
                 return True
         return False
-    
 
     def add_tmp_bases(self, node):
         # ast.ClassDef

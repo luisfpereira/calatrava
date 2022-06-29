@@ -12,6 +12,8 @@ from calatrava.parser.ast.uml import (
     PackageManager,
 )
 
+logging.basicConfig(format='%(message)s', level=logging.INFO)
+
 
 def _handle_variadic_input(args):
     packages = []
