@@ -2,6 +2,7 @@
 import graphviz
 
 from calatrava.filters import apply_filters
+from calatrava.utils import import_class_from_str
 
 
 def _get_block_str(block, symbol=''):
@@ -11,8 +12,8 @@ def _get_block_str(block, symbol=''):
 
 
 def load_record_creator_from_dict(metadata):
-    # TODO: external
-    RecordCreator_ = globals()[metadata.get('type', 'RecordCreator')]
+    type_ = metadata.get('type', 'DEFAULT_RECORD_CREATOR')
+    RecordCreator_ = import_class_from_str(type_) if '.' in type_ else globals().get(type_)
 
     kwargs = metadata.copy()
     kwargs.pop('type', None)

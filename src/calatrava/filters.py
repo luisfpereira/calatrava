@@ -1,6 +1,8 @@
 
 import abc
 
+from calatrava.utils import import_class_from_str
+
 
 def apply_filters(filters, classes):
     for filter_ in filters:
@@ -21,7 +23,8 @@ def load_filters_from_ls(filters_meta):
 
 
 def load_filter_from_dict(filter_meta):
-    Filter_ = globals()[filter_meta.get('type')]
+    type_ = filter_meta.get('type')
+    Filter_ = import_class_from_str(type_) if '.' in type_ else globals().get(type_)
 
     kwargs = filter_meta.copy()
     del kwargs['type']
