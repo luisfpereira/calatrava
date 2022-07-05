@@ -5,7 +5,10 @@ from calatrava.filters import apply_filters
 from calatrava.utils import import_class_from_str
 
 
-def _get_block_str(block, symbol=''):
+def _get_block_str(block, symbol='', keep_private=True):
+    if not keep_private:
+        block = [elem for elem in block if not elem.startswith('_')]
+
     if block:
         return symbol + fr'\l{symbol}'.join(block) + r'\l'
     return ''
@@ -24,10 +27,11 @@ def load_record_creator_from_dict(metadata):
 class RecordCreator:
 
     def __init__(self, class_attr_name='name', show_cls_attrs=False,
-                 separate_props=False, styles=None):
+                 separate_props=False, styles=None, keep_private=True):
         self.class_attr_name = class_attr_name
         self.show_cls_attrs = show_cls_attrs
         self.separate_props = separate_props
+        self.keep_private = keep_private
 
         self.styles = {} if styles is None else styles
 
@@ -68,13 +72,13 @@ class RecordCreator:
         attrs_str = ''
         if self.show_cls_attrs:
             cls_attrs = class_.cls_attrs
-            attrs_str += f"{_get_block_str(sorted(cls_attrs), symbol='+')}|"
+            attrs_str += f"{_get_block_str(sorted(cls_attrs), symbol='+', keep_private=self.keep_private)}|"
 
         attrs = set(class_.attrs)
         base_attrs = set(class_.base_attrs).difference(attrs)
 
-        attrs_str += _get_block_str(sorted(attrs), symbol='+')
-        attrs_str += _get_block_str(sorted(base_attrs), symbol='-')
+        attrs_str += _get_block_str(sorted(attrs), symbol='+', keep_private=self.keep_private)
+        attrs_str += _get_block_str(sorted(base_attrs), symbol='-', keep_private=self.keep_private)
 
         return attrs_str
 
@@ -87,8 +91,8 @@ class RecordCreator:
             props_names = set(self._get_method_names(props, suffix=''))
             base_props_names = set(self._get_method_names(base_props, suffix='')).difference(props_names)
 
-            methods_str += _get_block_str(sorted(props_names), symbol='+')
-            methods_str += f"{_get_block_str(sorted(base_props_names), symbol='-')}|"
+            methods_str += _get_block_str(sorted(props_names), symbol='+', keep_private=self.keep_private)
+            methods_str += f"{_get_block_str(sorted(base_props_names), symbol='-', keep_private=self.keep_private)}|"
 
             methods = [method for method in class_.methods if not method.is_property]
             base_methods = [method for method in class_.base_methods if not method.is_property]
@@ -100,8 +104,8 @@ class RecordCreator:
         methods_names = set(self._get_method_names(methods))
         base_methods_names = set(self._get_method_names(base_methods)).difference(methods_names)
 
-        methods_str += _get_block_str(sorted(methods_names), symbol='+')
-        methods_str += _get_block_str(sorted(base_methods_names), symbol='-')
+        methods_str += _get_block_str(sorted(methods_names), symbol='+', keep_private=self.keep_private)
+        methods_str += _get_block_str(sorted(base_methods_names), symbol='-', keep_private=self.keep_private)
 
         return methods_str
 
