@@ -1,0 +1,16 @@
+
+{
+    "record_creator": {
+        "type": "RecordCreator",
+        "show_cls_attrs": true,
+        "separate_props": false,
+        "keep_private": false
+    },
+    "filters":[
+        {
+            "type": "PackageRemover",
+            "names": ["abc"]
+        }
+
+    ]
+}

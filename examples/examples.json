@@ -1,0 +1,12 @@
+{
+    "calatrava": {
+        "repo_url": "https://github.com/lpereira95/calatrava/",
+        "package_folder": "src/calatrava",
+        "config": "config.json"
+    },
+    "geomstats":{
+        "repo_url": "https://github.com/geomstats/geomstats"
+    }
+
+
+}

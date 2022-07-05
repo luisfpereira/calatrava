@@ -2,3 +2,4 @@
 **/*egg-info*
 .coverage
 .DS_Store
+examples/_tmp/
