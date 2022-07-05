@@ -3,7 +3,7 @@ import click
 import logging
 
 from calatrava.config import load_from_config
-from calatrava.graphviz.uml import (
+from calatrava.viz.graphviz.uml import (
     create_graph,
     save_graph,
 )

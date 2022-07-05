@@ -2,7 +2,7 @@
 from pathlib import Path
 import json
 
-from calatrava.graphviz.uml import (
+from calatrava.viz.graphviz.uml import (
     DEFAULT_RECORD_CREATOR,
     load_record_creator_from_dict,
 )
