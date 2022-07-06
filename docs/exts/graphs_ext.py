@@ -72,7 +72,7 @@ def _copy_files(source, destination):
     for filename in os.listdir(source):
         new_name = os.path.join(destination, filename)
         if os.path.exists(new_name):
-            continue
+            os.remove(new_name)
 
         previous_name = os.path.join(source, filename)
         shutil.copy(previous_name, new_name)
