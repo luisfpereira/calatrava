@@ -3,6 +3,7 @@ import os
 import sys
 import shutil
 
+import logging
 
 def setup(app):
 
@@ -54,20 +55,22 @@ def cleanup(app, exception):
     if not app.builder.config.generate_graphs:
         return
 
-    print("Starting cleanup...")
+    logging.info("Starting cleanup...")
 
     examples_dir = app.builder.config.examples_dir
     srcdir = app.builder.srcdir
     outdir = app.builder.outdir
 
-    # images_dir = os.path.join(outdir, '_images')
-    # graphs_dir = _get_abspath_from_rel('_graphs', srcdir)
-    # _copy_files(graphs_dir, images_dir)
+    images_dir = os.path.join(outdir, '_images')
+    graphs_dir = _get_abspath_from_rel('_graphs', srcdir)
+    _copy_files(graphs_dir, images_dir)
+    logging.info(images_dir)
 
     out_configs_dir = os.path.join(outdir, '_configs')
     os.makedirs(out_configs_dir, exist_ok=True)
     configs_dir = _get_abspath_from_rel(os.path.join(examples_dir, 'configs'), srcdir)
     _copy_files(configs_dir, out_configs_dir)
+    logging.info(configs_dir)
 
 
 def _copy_files(source, destination):
