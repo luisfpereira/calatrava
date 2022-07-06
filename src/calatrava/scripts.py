@@ -27,8 +27,7 @@ def _handle_variadic_input(args):
     return packages, imports
 
 
-def draw_uml(args, output_filename="calatrava_tree", output_format="svg",
-             config=None, view=True):
+def parse_packages(args):
     packages_paths, imports = _handle_variadic_input(args)
 
     packages = [Package(package_path) for package_path in packages_paths]
@@ -41,6 +40,14 @@ def draw_uml(args, output_filename="calatrava_tree", output_format="svg",
         package_manager.find_all()
 
     package_manager.update_inheritance()
+
+    return package_manager
+
+
+def draw_uml(args, output_filename="calatrava_tree", output_format="svg",
+             config=None, view=True):
+
+    package_manager = parse_packages(args)
 
     classes = sorted(list(package_manager.get_classes().values()),
                      key=lambda x: x.name)
