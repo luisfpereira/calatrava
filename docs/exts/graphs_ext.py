@@ -16,6 +16,11 @@ def setup(app):
         default="../examples",
         rebuild=False,
     )
+    app.add_config_value(
+        'locally',
+        default=True,
+        rebuild=False,
+    )
 
     app.connect('builder-inited', startup)
     app.connect('build-finished', cleanup)
@@ -35,7 +40,7 @@ def startup(app):
     from create_rst import main as create_rst_
 
     create_graphs_()
-    create_rst_(move=True)
+    create_rst_(move=True, locally=app.builder.config.locally)
 
     os.chdir(cwd)
 

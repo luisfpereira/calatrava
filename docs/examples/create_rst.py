@@ -15,13 +15,16 @@ from utils import (
 
 ROOT_DIR = Path('../../')
 DOCS_SOURCE_DIR = Path('../source')
-PACKAGE_URL = "https://raw.githubusercontent.com/lpereira95/calatrava/master"
+READTHEDOCS_URL = "https://calatrava.readthedocs.io/en/latest"
 
 
-def get_config_url(graph_data):
+def get_config_url(graph_data, locally):
     config_file = get_config_file(graph_data)
     config_short_name = config_file.split(os.path.sep)[-1]
-    return f"_configs/{config_short_name}"
+    prefix = "_configs/"
+    if not locally:
+        prefix = f"{READTHEDOCS_URL}/{prefix}"
+    return f"{prefix}{config_short_name}"
 
 
 def get_image_path(graph_data, repo_name=None, relative_to=DOCS_SOURCE_DIR):
@@ -30,15 +33,18 @@ def get_image_path(graph_data, repo_name=None, relative_to=DOCS_SOURCE_DIR):
     return Path(output_filename).relative_to(relative_to)
 
 
-def get_image_url(graph_data, repo_name=None):
-    image_path = get_image_path(graph_data, repo_name, relative_to=GRAPHS_DIR)
-    return f"_images/{image_path}.svg"
+def get_image_url(graph_data, locally):
+    image_path = get_image_path(graph_data, relative_to=GRAPHS_DIR)
+    prefix = "_images/"
+    if not locally:
+        prefix = f"{READTHEDOCS_URL}/{prefix}"
+    return f"{prefix}{image_path}.svg"
 
 
-def get_repo_main_text(repo_name, repo_data, title_marker='-'):
+def get_repo_main_text(repo_name, repo_data, locally, title_marker='-'):
     repo_url = get_repo_url(repo_data)
 
-    config_url = get_config_url(repo_data)
+    config_url = get_config_url(repo_data, locally)
 
     image_path = get_image_path(repo_data, repo_name)
 
@@ -51,9 +57,9 @@ def get_repo_main_text(repo_name, repo_data, title_marker='-'):
     return '\n'.join([title, title_mark, image])
 
 
-def get_simple_case_bullet(graph_data):
-    image_url = get_image_url(graph_data)
-    config_url = get_config_url(graph_data)
+def get_simple_case_bullet(graph_data, locally):
+    image_url = get_image_url(graph_data, locally)
+    config_url = get_config_url(graph_data, locally)
 
     image_name = image_url.split('/')[-1]
     config_name = config_url.split('/')[-1]
@@ -66,13 +72,13 @@ def get_simple_case_bullet(graph_data):
     return bullet
 
 
-def get_repo_text(repo_name, repo_data):
-    main_text = get_repo_main_text(repo_name, repo_data)
+def get_repo_text(repo_name, repo_data, locally):
+    main_text = get_repo_main_text(repo_name, repo_data, locally)
 
     # do additions additional
     graph_data = get_additional_graph_data(repo_data)
 
-    bullets = [get_simple_case_bullet(graph_data_) for graph_data_ in graph_data]
+    bullets = [get_simple_case_bullet(graph_data_, locally) for graph_data_ in graph_data]
     if bullets:
         text = '\nOther examples:\n\n'
         text += '\n'.join(bullets)
@@ -82,12 +88,12 @@ def get_repo_text(repo_name, repo_data):
     return '\n\n'.join([main_text, text])
 
 
-def main(move=False):
+def main(move=True, locally=True):
     rst_filename = '_data.rst'
 
     data = load_data()
 
-    text_ls = [get_repo_text(repo_name, repo_data) for repo_name, repo_data in data.items()]
+    text_ls = [get_repo_text(repo_name, repo_data, locally) for repo_name, repo_data in data.items()]
 
     text = '\n\n\n'.join(text_ls)
 
@@ -99,4 +105,4 @@ def main(move=False):
 
 
 if __name__ == '__main__':
-    main(move=True)
+    main(move=True, locally=True)
