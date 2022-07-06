@@ -37,7 +37,7 @@ def draw_graph(repo_name, repo_dir, graph_data):
     imports = get_imports(repo_name, repo_dir, graph_data)
 
     draw_uml(imports, output_filename=output_filename, config=config_file,
-             view=True)
+             view=False)
 
 
 if __name__ == '__main__':
