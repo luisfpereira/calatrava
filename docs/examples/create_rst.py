@@ -35,7 +35,7 @@ def get_image_url(graph_data, repo_name=None):
     return f"_images/{image_path}.svg"
 
 
-def get_repo_main_text(repo_name, repo_data):
+def get_repo_main_text(repo_name, repo_data, title_marker='-'):
     repo_url = get_repo_url(repo_data)
 
     config_url = get_config_url(repo_data)
@@ -45,7 +45,7 @@ def get_repo_main_text(repo_name, repo_data):
     space = ' '
 
     title = f'`{repo_name} <{repo_url}>`_'
-    title_mark = f"{len(title)*'='}\n"
+    title_mark = f"{len(title)*title_marker}\n"
     image = f'.. image:: {image_path}.svg\n{space*4}:target: {config_url}'
 
     return '\n'.join([title, title_mark, image])
