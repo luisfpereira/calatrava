@@ -7,8 +7,16 @@
     },
     "filters":[
         {
+            "type": "ByNameRemover",
+            "names": ["Parametrizer"],
+            "attr_name": "short_name"
+        },
+        {
             "type": "PackageRemover",
             "names": ["abc"]
+        },
+        {
+            "type": "LoneParentsRemover"
         }
 
     ]

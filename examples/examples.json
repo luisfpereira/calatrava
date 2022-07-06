@@ -1,11 +1,60 @@
 {
     "calatrava": {
-        "repo_url": "https://github.com/lpereira95/calatrava/",
+        "repo_url": "https://github.com/lpereira95/calatrava",
         "package_folder": "src/calatrava",
         "config": "config.json"
     },
-    "geomstats":{
-        "repo_url": "https://github.com/geomstats/geomstats"
+    "geomstats": {
+        "repo_url": "https://github.com/geomstats/geomstats",
+        "other":[
+            {
+                "graph_name": "geomstats_manifold",
+                "config": "geomstats_manifold.json",
+                "imports": ["geomstats.geometry"]
+            },
+            {
+                "graph_name": "geomstats_connection",
+                "config": "geomstats_connection.json",
+                "imports": ["geomstats.geometry"]
+            },
+            {
+                "graph_name": "geomstats_learning",
+                "imports": ["geomstats.learning"]
+            },
+            {
+                "graph_name": "geomstats_tests",
+                "package_folder": "tests",
+                "imports": ["tests.tests_geomstats"],
+                "config": "geomstats_test.json"
+            },
+            {
+                "graph_name": "geomstats_test_data",
+                "package_folder": "tests",
+                "imports": ["tests.data"]
+            },
+            {
+                "graph_name": "geomstats_hypersphere",
+                "package_folders": ["geomstats", "tests"],
+                "imports": [
+                    "geomstats.geometry.hypersphere",
+                    "tests.data.hypersphere_data",
+                    "tests.tests_geomstats.test_hypersphere"
+                ]
+            }
+        ]
+    },
+    "jaxgeometry": {
+        "repo_url": "https://bitbucket.org/stefansommer/jaxgeometry/src/main/",
+        "package_folder": "src",
+        "config": "basic_config.json"
+    },
+    "pyRiemann": {
+        "repo_url": "https://github.com/pyRiemann/pyRiemann",
+        "package_folder": "pyriemann",
+        "config": "basic_config.json"
+    },
+    "pymanopt": {
+        "repo_url": "https://github.com/pymanopt/pymanopt"
     }
 
 

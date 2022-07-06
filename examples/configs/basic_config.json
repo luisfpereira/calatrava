@@ -1,8 +1,8 @@
 {
     "record_creator": {
         "type": "RecordCreator",
-        "show_cls_attrs": true,
-        "separate_props": true,
+        "show_cls_attrs": false,
+        "separate_props": false,
         "keep_private": true
     },
     "filters":[

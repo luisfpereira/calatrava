@@ -7,6 +7,12 @@
     },
     "filters":[
         {
+            "type": "RelatedKeeper",
+            "names": ["Manifold"],
+            "ignore": ["abc.ABC", "abc.ABCMeta"],
+            "keep_all": true
+        },
+        {
             "type": "PackageRemover",
             "names": ["abc"]
         }

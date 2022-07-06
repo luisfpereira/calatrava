@@ -7,6 +7,12 @@
     },
     "filters":[
         {
+            "type": "RelatedKeeper",
+            "names": ["Connection"],
+            "ignore": ["abc.ABC", "abc.ABCMeta"],
+            "keep_all": true
+        },
+        {
             "type": "PackageRemover",
             "names": ["abc"]
         }
