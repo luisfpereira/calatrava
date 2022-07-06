@@ -55,7 +55,7 @@ class PackageRemover(Filter):
 
     def filter(self, classes):
         for class_ in classes.copy():
-            package_name = class_.full_name.split('.')[0]
+            package_name = class_.long_name.split('.')[0]
             if package_name in self.names:
                 classes.remove(class_)
 
@@ -64,7 +64,7 @@ class PackageRemover(Filter):
 
 class ByNameRemover(Filter):
 
-    def __init__(self, names, attr_name='full_name'):
+    def __init__(self, names, attr_name='long_name'):
         self.names = set(names)
         self.attr_name = attr_name
 
@@ -78,7 +78,7 @@ class ByNameRemover(Filter):
 
 class ByPartialNameRemover(Filter):
 
-    def __init__(self, names, attr_name='full_name'):
+    def __init__(self, names, attr_name='long_name'):
         self.names = set(names)
         self.attr_name = attr_name
 
@@ -94,7 +94,7 @@ class ByPartialNameRemover(Filter):
 
 
 class ByPartialNameKeeper(Filter):
-    def __init__(self, names, attr_name='full_name', exceptions=()):
+    def __init__(self, names, attr_name='long_name', exceptions=()):
         self.names = set(names)
         self.attr_name = attr_name
         self.exceptions = set(exceptions)
@@ -141,7 +141,7 @@ class RelatedOnlyKeeper(Filter):
 
     def filter(self, classes):
         parent_classes = _find_classes_by_attr(classes, self.names, self.attr_name)
-        ignore = _find_classes_by_attr(classes, self.ignore, "full_name")
+        ignore = _find_classes_by_attr(classes, self.ignore, "long_name")
         related = []
         for parent_class in parent_classes:
             if parent_class in related:

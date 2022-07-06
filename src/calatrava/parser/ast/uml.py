@@ -68,29 +68,29 @@ def collect_star_imports(root, module_name, module_is_init):
 class _AttributeVisitor(ast.NodeVisitor):
 
     def __init__(self):
-        self._full_name_ls = []
+        self._long_name_ls = []
 
-    def collect_full_name(self, node):
-        self._full_name_ls = []
+    def collect_long_name(self, node):
+        self._long_name_ls = []
 
         self.visit(node)
 
-        return '.'.join(reversed(self._full_name_ls))
+        return '.'.join(reversed(self._long_name_ls))
 
     def visit_Attribute(self, node):
-        self._full_name_ls.append(node.attr)
+        self._long_name_ls.append(node.attr)
         self.visit(node.value)
 
     def visit_Name(self, node):
-        self._full_name_ls.append(node.id)
+        self._long_name_ls.append(node.id)
 
 
 _attribute_visitor = _AttributeVisitor()
 
 
-def collect_attr_full_name(node):
+def collect_attr_long_name(node):
     # ast.Attribute
-    return _attribute_visitor.collect_full_name(node)
+    return _attribute_visitor.collect_long_name(node)
 
 
 class _AssignVisitor(ast.NodeVisitor):
@@ -114,7 +114,7 @@ class _AssignVisitor(ast.NodeVisitor):
             self.visit(node_)
 
     def visit_Attribute(self, node):
-        self._target_names.append(collect_attr_full_name(node))
+        self._target_names.append(collect_attr_long_name(node))
 
 
 _assign_visitor = _AssignVisitor()
@@ -171,15 +171,15 @@ class ModuleVisitor:
             return self.class_visitor.visit(node)
 
         # try in imports
-        full_name = find_in_imports(
-            self.root, name, self.module.full_name, self.module.is_init)
-        if full_name is not None:
-            class_ = self.module.package.visitor.manager.find_class(full_name)
+        long_name = find_in_imports(
+            self.root, name, self.module.long_name, self.module.is_init)
+        if long_name is not None:
+            class_ = self.module.package.visitor.manager.find_class(long_name)
             self.import_class_map[name] = class_
             return class_
 
         # try in start imports
-        star_imports = collect_star_imports(self.root, self.module.full_name,
+        star_imports = collect_star_imports(self.root, self.module.long_name,
                                             self.module.is_init)
         if star_imports:
             if visited:
@@ -188,9 +188,9 @@ class ModuleVisitor:
                 visited = [self.module]
 
             for star_import in star_imports:
-                full_name = f'{star_import}.{name}'
+                long_name = f'{star_import}.{name}'
                 class_ = self.module.package.visitor.manager.find_class(
-                    full_name, visited=visited)
+                    long_name, visited=visited)
                 if class_ is not None:
                     self.import_class_map[name] = class_
                     return class_
@@ -226,8 +226,8 @@ class PackageManager:
         for package in packages_ls:
             package.visitor.manager = self
 
-    def _get_package(self, full_name, raise_=False):
-        package_name = full_name.split('.')[0]
+    def _get_package(self, long_name, raise_=False):
+        package_name = long_name.split('.')[0]
         package = self.packages.get(package_name, None)
 
         if raise_ and package is None:
@@ -236,32 +236,32 @@ class PackageManager:
         return package
 
     def add_unknown_class(self, class_):
-        self._unknown_classes[class_.full_name] = class_
+        self._unknown_classes[class_.long_name] = class_
 
     @property
     def packages(self):
         return {package.name: package for package in self._packages_ls}
 
-    def find_class(self, full_name, visited=()):
-        package = self._get_package(full_name)
+    def find_class(self, long_name, visited=()):
+        package = self._get_package(long_name)
         if package is None and visited:
             return
         elif package is None:
-            class_ = self._unknown_classes.get(full_name,
-                                               self.Class(full_name, None))
+            class_ = self._unknown_classes.get(long_name,
+                                               self.Class(long_name, None))
             self.add_unknown_class(class_)
             return class_
         else:
-            return package.visitor.find_class(full_name, visited=visited)
+            return package.visitor.find_class(long_name, visited=visited)
 
-    def find_module(self, full_name):
-        package = self._get_package(full_name, raise_=True)
+    def find_module(self, long_name):
+        package = self._get_package(long_name, raise_=True)
 
-        return package.visitor.find_module(full_name)
+        return package.visitor.find_module(long_name)
 
-    def find_subpackage(self, full_name):
-        package = self._get_package(full_name)
-        return package.visitor.find_subpackage(full_name)
+    def find_subpackage(self, long_name):
+        package = self._get_package(long_name)
+        return package.visitor.find_subpackage(long_name)
 
     def find_all(self):
         classes = []
@@ -308,33 +308,33 @@ class PackageVisitor:
         self.Module = Module
         self.manager = self  # to work in basic case
 
-    def _get_module(self, full_name):
-        module = self.package.modules.get(full_name, None)
+    def _get_module(self, long_name):
+        module = self.package.modules.get(long_name, None)
         if module is None:
-            module = self.Module(full_name, self.package)
+            module = self.Module(long_name, self.package)
             self.modules.append(module)
 
         return module
 
-    def find_class(self, full_name, visited=()):
-        full_name_ls = full_name.split('.')
+    def find_class(self, long_name, visited=()):
+        long_name_ls = long_name.split('.')
         i = 0
         while True:
             i += 1
 
-            if i > len(full_name_ls):
-                raise Exception(f'Cannot find `{full_name}`')
+            if i > len(long_name_ls):
+                raise Exception(f'Cannot find `{long_name}`')
 
-            module_name = '.'.join(full_name_ls[:-i])
+            module_name = '.'.join(long_name_ls[:-i])
             if module_name in self.all_modules_names:
-                class_name = '.'.join(full_name_ls[-i:])
+                class_name = '.'.join(long_name_ls[-i:])
                 break
 
         module = self._get_module(module_name)
         return module.visitor.find_class(class_name, visited=visited)
 
-    def find_module(self, full_name):
-        module = self._get_module(full_name)
+    def find_module(self, long_name):
+        module = self._get_module(long_name)
 
         return module.visitor.find_all_classes()
 
@@ -345,8 +345,8 @@ class PackageVisitor:
 
         return all_classes
 
-    def find_subpackage(self, full_name):
-        module_names = [module_name for module_name in self.all_modules_names if module_name.startswith(full_name)]
+    def find_subpackage(self, long_name):
+        module_names = [module_name for module_name in self.all_modules_names if module_name.startswith(long_name)]
         return self._find_modules(module_names)
 
     def find_all(self):
@@ -406,7 +406,7 @@ class Package:
 
     @property
     def modules(self):
-        return {module.full_name: module for module in self.visitor.modules}
+        return {module.long_name: module for module in self.visitor.modules}
 
     @property
     def name(self):
@@ -426,8 +426,8 @@ class Package:
 
 class Module:
 
-    def __init__(self, full_name, package):
-        self.full_name = full_name
+    def __init__(self, long_name, package):
+        self.long_name = long_name
         self.package = package
 
         self.visitor = ModuleVisitor(self)
@@ -441,7 +441,7 @@ class Module:
         return self.package.root_path
 
     def _get_path_beginning(self):
-        return self.package_root / f"{self.full_name.replace('.', os.path.sep)}"
+        return self.package_root / f"{self.long_name.replace('.', os.path.sep)}"
 
     def _get_init_path(self, path_beginning=None):
         path_beginning = path_beginning or self._get_path_beginning()
@@ -459,7 +459,7 @@ class Module:
         return {class_.name: class_ for class_ in self.visitor.classes}
 
     def get_classes(self):
-        return {class_.full_name: class_ for class_ in self.visitor.classes}
+        return {class_.long_name: class_ for class_ in self.visitor.classes}
 
 
 TmpBase = namedtuple('TmpBase', ['name', 'is_import'])
@@ -481,7 +481,7 @@ class Class:
         self._found = found
 
     def __repr__(self):
-        return f'<class: {self.full_name}>'
+        return f'<class: {self.long_name}>'
 
     @property
     def all_attrs(self):
@@ -507,9 +507,9 @@ class Class:
         return methods
 
     @property
-    def full_name(self):
+    def long_name(self):
         if self.module:
-            return f'{self.module.full_name}.{self.name}'
+            return f'{self.module.long_name}.{self.name}'
         else:
             return self.name
 
@@ -519,7 +519,7 @@ class Class:
 
     @property
     def id(self):
-        return self.full_name.replace('.', '_')
+        return self.long_name.replace('.', '_')
 
     @property
     def found(self):
@@ -528,7 +528,7 @@ class Class:
     @property
     def is_abstract(self):
         for class_ in self.bases:
-            if class_.full_name.startswith('abc.'):
+            if class_.long_name.startswith('abc.'):
                 return True
         return False
 
@@ -544,7 +544,7 @@ class Class:
                 name = node.id
                 is_import = False
             else:  # ast.Attribute
-                name = collect_attr_full_name(node)
+                name = collect_attr_long_name(node)
                 is_import = True
 
             bases.append(TmpBase(name, is_import))
@@ -585,8 +585,8 @@ class Method:
         self.decorator_list = []
 
     @property
-    def full_name(self):
-        return f'{self.class_.module.full_name}.{self.name}'
+    def long_name(self):
+        return f'{self.class_.module.long_name}.{self.name}'
 
     @property
     def short_name(self):
@@ -621,7 +621,7 @@ class Method:
             if isinstance(node, ast.Name):
                 name = node.id
             else:  # ast.Attribute
-                name = collect_attr_full_name(node)
+                name = collect_attr_long_name(node)
             self.decorator_list.append(name)
 
 
