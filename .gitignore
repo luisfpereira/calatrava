@@ -2,5 +2,7 @@
 **/*egg-info*
 .coverage
 .DS_Store
-examples/_tmp/
 **/_build
+docs/examples/_tmp/
+docs/source/_graphs
+docs/source/_data.rst

@@ -75,9 +75,11 @@ html_theme_options = {
 
 # generate pictures (what an ugly hack!)
 if generate_graphs:
-    sys.path.insert(0, os.path.abspath("../../examples"))
+    examples_dir = "../examples"
+    sys.path.insert(0, os.path.abspath(examples_dir))
 
-    os.chdir('../../examples')
+    cwd = os.getcwd()
+    os.chdir(examples_dir)
 
     from create_graphs import main as create_graphs_
     from create_rst import main as create_rst_

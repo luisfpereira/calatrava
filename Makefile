@@ -10,13 +10,13 @@ upload:
 	twine upload dist/*
 
 clean:
-	rm -rf examples/_tmp
+# 	rm -rf docs/examples/_tmp
+	rm -rf docs/_build
 	make soft_clean
 
 soft_clean:
 	rm -rf docs/source/_graphs docs/source/_data.rst
 
 example:
-	cd examples && python create_graphs.py && python create_rst.py
-	mv examples/_data.rst docs/source
+	cd docs/examples && python create_graphs.py && python create_rst.py
 # 	cd docs/source/_graphs && ls geomstats*.svg | xargs -n 1 xdg-open

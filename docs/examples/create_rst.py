@@ -10,12 +10,13 @@ from utils import (
     get_repo_url,
     get_additional_graph_data,
     get_description,
+    GRAPHS_DIR,
 )
 
-ROOT_DIR = Path('../')
-DOCS_SOURCE_DIR = Path('../docs/source')
+ROOT_DIR = Path('../../')
+DOCS_SOURCE_DIR = Path('../source')
 PACKAGE_URL = "https://raw.githubusercontent.com/lpereira95/calatrava/master"
-CONFIG_URL_PREFIX = f"{PACKAGE_URL}/examples"
+CONFIG_URL_PREFIX = f"{PACKAGE_URL}/docs/examples"
 
 
 def get_config_url(graph_data):
@@ -25,12 +26,13 @@ def get_config_url(graph_data):
 
 def get_image_path(graph_data, repo_name=None, relative_to=DOCS_SOURCE_DIR):
     output_filename = get_output_filename(graph_data, repo_name)
+    print(output_filename)
     return Path(output_filename).relative_to(relative_to)
 
 
 def get_image_url(graph_data, repo_name=None):
-    image_path = get_image_path(graph_data, repo_name, relative_to=ROOT_DIR)
-    return f"{PACKAGE_URL}/{image_path}"
+    image_path = get_image_path(graph_data, repo_name, relative_to=GRAPHS_DIR)
+    return f"_images/{image_path}"
 
 
 def get_repo_main_text(repo_name, repo_data):
@@ -97,4 +99,4 @@ def main(move=False):
 
 
 if __name__ == '__main__':
-    main(move=False)
+    main(move=True)

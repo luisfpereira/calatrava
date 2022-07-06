@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 METADATA_FILE = "examples.json"
-GRAPHS_DIR = Path('../docs/source/_graphs')
+GRAPHS_DIR = Path('../source/_graphs')
 
 
 def load_data(filename=METADATA_FILE):
