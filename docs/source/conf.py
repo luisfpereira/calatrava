@@ -54,6 +54,7 @@ suppress_warnings = ["myst.mathjax"]
 
 # customized extension
 generate_graphs = True
+examples_dir = '../examples'
 
 
 # -- Options for HTML output -------------------------------------------------

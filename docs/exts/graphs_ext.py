@@ -2,6 +2,7 @@
 import os
 import sys
 import shutil
+from pathlib import Path
 
 GRAPHS_DIR = os.path.join("source", "_graphs")
 CONFIGS_DIR = os.path.join("examples", "configs")
@@ -14,6 +15,11 @@ def setup(app):
         default=True,
         rebuild=False,
     )
+    app.add_config_value(
+        'examples_dir',
+        default="../examples",
+        rebuild=False,
+    )
 
     app.connect('builder-inited', startup)
     app.connect('build-finished', cleanup)
@@ -23,8 +29,8 @@ def startup(app):
     if not app.builder.config.generate_graphs:
         return
 
-    examples_dir = "examples"
-    sys.path.insert(0, os.path.abspath(examples_dir))
+    examples_dir = _get_abspath_from_rel(app.builder.config.examples_dir, app.builder.srcdir)
+    sys.path.insert(0, examples_dir)
 
     cwd = os.getcwd()
     os.chdir(examples_dir)
@@ -59,3 +65,13 @@ def _copy_files(source, destination):
 
         previous_name = os.path.join(source, filename)
         shutil.copy(previous_name, new_name)
+
+
+def _get_abspath_from_rel(relative_path, home):
+    rel_path_split = relative_path.split(f'..{os.path.sep}')
+    n = len(rel_path_split) - 1
+    if n:
+        home_ls = home.split(os.path.sep)
+        return f'{os.path.sep}'.join(home_ls[:-n] + [rel_path_split[-1]])
+
+    return os.path.join(home, relative_path)
