@@ -33,6 +33,22 @@ def load_filter_from_dict(filter_meta):
     return Filter_(**kwargs)
 
 
+def _find_classes_by_attr(classes, attrs, attr_name="name"):
+    return [class_ for class_ in classes if getattr(class_, attr_name) in attrs]
+
+
+def _find_all_related(class_, related=None, ignore=()):
+    if related is None:
+        related = []
+
+    for child in class_.bases + class_.children:
+        if child not in ignore and child not in related:
+            related.append(child)
+            _find_all_related(child, related=related, ignore=ignore)
+
+    return related
+
+
 class PackageRemover(Filter):
     def __init__(self, names):
         self.names = set(names)
@@ -106,3 +122,31 @@ class LoneParentsRemover(Filter):
                     classes.remove(class_)
 
         return classes
+
+
+class RelatedOnlyKeeper(Filter):
+
+    def __init__(self, names, attr_name='name',
+                 ignore=('abc.ABC', 'abc.ABCMeta',)):
+        self.names = names
+        self.attr_name = attr_name
+        self.ignore = ignore
+
+    def _remove_unrelated(self, classes, related):
+        for class_ in classes.copy():
+            if class_ not in related:
+                classes.remove(class_)
+
+        return classes
+
+    def filter(self, classes):
+        parent_classes = _find_classes_by_attr(classes, self.names, self.attr_name)
+        ignore = _find_classes_by_attr(classes, self.ignore, "full_name")
+        related = []
+        for parent_class in parent_classes:
+            if parent_class in related:
+                continue
+
+            _find_all_related(parent_class, related=related, ignore=ignore)
+
+        return self._remove_unrelated(classes, set(related))
