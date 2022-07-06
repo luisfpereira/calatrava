@@ -55,6 +55,10 @@
     },
     "pymanopt": {
         "repo_url": "https://github.com/pymanopt/pymanopt"
+    },
+    "Fed-BioMed": {
+        "repo_url": "https://gitlab.inria.fr/fedbiomed/fedbiomed",
+        "package_folder": "fedbiomed"
     }
 
 
