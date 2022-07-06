@@ -49,6 +49,28 @@ def _find_all_related(class_, related=None, ignore=()):
     return related
 
 
+def _find_related(class_, related=None, ignore=(), look_down=True):
+    if related is None:
+        related = []
+
+    for child in class_.bases:
+        if child not in ignore and child not in related:
+            related.append(child)
+            _find_related(child, related=related, ignore=ignore,
+                          look_down=False)
+
+    if not look_down:
+        return related
+
+    for child in class_.children:
+        if child not in ignore and child not in related:
+            related.append(child)
+            _find_related(child, related=related, ignore=ignore,
+                          look_down=True)
+
+    return related
+
+
 class PackageRemover(Filter):
     def __init__(self, names):
         self.names = set(names)
@@ -124,13 +146,20 @@ class LoneParentsRemover(Filter):
         return classes
 
 
-class RelatedOnlyKeeper(Filter):
+class RelatedKeeper(Filter):
 
     def __init__(self, names, attr_name='name',
-                 ignore=('abc.ABC', 'abc.ABCMeta',)):
+                 ignore=('abc.ABC', 'abc.ABCMeta',), keep_all=False):
         self.names = names
         self.attr_name = attr_name
         self.ignore = ignore
+        self.keep_all = keep_all
+
+    def _find_related(self, parent_class, related, ignore):
+        if self.keep_all:
+            return _find_all_related(parent_class, related=related, ignore=ignore)
+        else:
+            return _find_related(parent_class, related=related, ignore=ignore)
 
     def _remove_unrelated(self, classes, related):
         for class_ in classes.copy():
@@ -144,9 +173,6 @@ class RelatedOnlyKeeper(Filter):
         ignore = _find_classes_by_attr(classes, self.ignore, "long_name")
         related = []
         for parent_class in parent_classes:
-            if parent_class in related:
-                continue
-
-            _find_all_related(parent_class, related=related, ignore=ignore)
+            self._find_related(parent_class, related=related, ignore=ignore)
 
         return self._remove_unrelated(classes, set(related))
