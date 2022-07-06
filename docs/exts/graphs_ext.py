@@ -36,6 +36,8 @@ def startup(app):
     if not app.builder.config.generate_graphs:
         return
 
+    logging.info(app.builder.outdir)
+
     examples_dir = _get_abspath_from_rel(app.builder.config.examples_dir, app.builder.srcdir)
     sys.path.insert(0, examples_dir)
 
