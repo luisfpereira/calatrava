@@ -5,6 +5,9 @@ import shutil
 
 import logging
 
+logging.basicConfig(format='%(message)s', level=logging.INFO)
+
+
 def setup(app):
 
     app.add_config_value(
