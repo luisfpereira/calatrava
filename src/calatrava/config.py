@@ -10,7 +10,7 @@ from calatrava.filters import load_filters_from_ls
 
 
 def get_global_config_file():
-    path = Path.home() / '.calatrava' / '.config.json'
+    path = Path.home() / '.calatrava' / 'config.json'
     if path.exists():
         return str(path)
 
