@@ -3,3 +3,4 @@
 .coverage
 .DS_Store
 examples/_tmp/
+**/_build
