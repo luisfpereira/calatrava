@@ -14,10 +14,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../../src"))
+sys.path.insert(0, os.path.abspath("../exts"))
 
 import calatrava
-
-generate_graphs = True
 
 
 # -- Project information -----------------------------------------------------
@@ -35,7 +34,7 @@ release = calatrava.__version__
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named "sphinx.ext.*") or your custom
 # ones.
-extensions = ["myst_parser"]
+extensions = ["myst_parser", "graphs_ext"]
 
 source_suffix = [".rst", ".md"]
 
@@ -52,6 +51,9 @@ add_module_names = False
 
 # mathjax config within myst_parser
 suppress_warnings = ["myst.mathjax"]
+
+# customized extension
+generate_graphs = True
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -71,18 +73,3 @@ html_theme_options = {
         },
     ]
 }
-
-
-# generate pictures (what an ugly hack!)
-if generate_graphs:
-    examples_dir = "../examples"
-    sys.path.insert(0, os.path.abspath(examples_dir))
-
-    cwd = os.getcwd()
-    os.chdir(examples_dir)
-
-    from create_graphs import main as create_graphs_
-    from create_rst import main as create_rst_
-
-    create_graphs_()
-    create_rst_(move=True)

@@ -16,12 +16,12 @@ from utils import (
 ROOT_DIR = Path('../../')
 DOCS_SOURCE_DIR = Path('../source')
 PACKAGE_URL = "https://raw.githubusercontent.com/lpereira95/calatrava/master"
-CONFIG_URL_PREFIX = f"{PACKAGE_URL}/docs/examples"
 
 
 def get_config_url(graph_data):
     config_file = get_config_file(graph_data)
-    return f"{CONFIG_URL_PREFIX}/{config_file}"
+    config_short_name = config_file.split(os.path.sep)[-1]
+    return f"_configs/{config_short_name}"
 
 
 def get_image_path(graph_data, repo_name=None, relative_to=DOCS_SOURCE_DIR):
@@ -32,7 +32,7 @@ def get_image_path(graph_data, repo_name=None, relative_to=DOCS_SOURCE_DIR):
 
 def get_image_url(graph_data, repo_name=None):
     image_path = get_image_path(graph_data, repo_name, relative_to=GRAPHS_DIR)
-    return f"_images/{image_path}"
+    return f"_images/{image_path}.svg"
 
 
 def get_repo_main_text(repo_name, repo_data):
