@@ -3,7 +3,8 @@
         "type": "RecordCreator",
         "show_cls_attrs": false,
         "separate_props": false,
-        "keep_private": true
+        "keep_private": true,
+        "class_attr_name": "long_name"
     },
     "filters":[
         {
