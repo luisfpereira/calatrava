@@ -40,8 +40,7 @@ def draw_graph(repo_name, repo_dir, graph_data):
              view=False)
 
 
-if __name__ == '__main__':
-
+def main():
     os.makedirs(TMP_DIR, exist_ok=True)
     os.makedirs(GRAPHS_DIR, exist_ok=True)
 
@@ -61,3 +60,7 @@ if __name__ == '__main__':
 
         for graph_data_ in graph_data:
             draw_graph(repo_name, repo_dir, graph_data_)
+
+
+if __name__ == '__main__':
+    main()

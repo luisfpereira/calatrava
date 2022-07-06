@@ -17,6 +17,9 @@ sys.path.insert(0, os.path.abspath("../../src"))
 
 import calatrava
 
+generate_graphs = True
+
+
 # -- Project information -----------------------------------------------------
 
 project = "calatrava"
@@ -68,3 +71,16 @@ html_theme_options = {
         },
     ]
 }
+
+
+# generate pictures (what an ugly hack!)
+if generate_graphs:
+    sys.path.insert(0, os.path.abspath("../../examples"))
+
+    os.chdir('../../examples')
+
+    from create_graphs import main as create_graphs_
+    from create_rst import main as create_rst_
+
+    create_graphs_()
+    create_rst_(move=True)

@@ -1,5 +1,8 @@
 
 from pathlib import Path
+import shutil
+import os
+
 from utils import (
     load_data,
     get_config_file,
@@ -10,7 +13,7 @@ from utils import (
 )
 
 ROOT_DIR = Path('../')
-DOCS_DIR = Path('../docs/source')
+DOCS_SOURCE_DIR = Path('../docs/source')
 PACKAGE_URL = "https://raw.githubusercontent.com/lpereira95/calatrava/master"
 CONFIG_URL_PREFIX = f"{PACKAGE_URL}/examples"
 
@@ -20,7 +23,7 @@ def get_config_url(graph_data):
     return f"{CONFIG_URL_PREFIX}/{config_file}"
 
 
-def get_image_path(graph_data, repo_name=None, relative_to=DOCS_DIR):
+def get_image_path(graph_data, repo_name=None, relative_to=DOCS_SOURCE_DIR):
     output_filename = get_output_filename(graph_data, repo_name)
     return Path(output_filename).relative_to(relative_to)
 
@@ -77,12 +80,10 @@ def get_repo_text(repo_name, repo_data):
     return '\n\n'.join([main_text, text])
 
 
-if __name__ == '__main__':
+def main(move=False):
     rst_filename = '_data.rst'
 
     data = load_data()
-
-    repo_name = "geomstats"
 
     text_ls = [get_repo_text(repo_name, repo_data) for repo_name, repo_data in data.items()]
 
@@ -90,3 +91,10 @@ if __name__ == '__main__':
 
     with open(rst_filename, 'w') as file:
         file.write(text)
+
+    if move:
+        shutil.move(rst_filename, os.path.join(DOCS_SOURCE_DIR, rst_filename))
+
+
+if __name__ == '__main__':
+    main(move=False)
