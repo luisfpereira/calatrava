@@ -55,7 +55,7 @@ def cleanup(app, exception):
     if not app.builder.config.generate_graphs:
         return
 
-    logging.info("Starting cleanup...")
+    logging.info("\nStarting cleanup...")
 
     examples_dir = app.builder.config.examples_dir
     srcdir = app.builder.srcdir
@@ -65,12 +65,14 @@ def cleanup(app, exception):
     graphs_dir = _get_abspath_from_rel('_graphs', srcdir)
     _copy_files(graphs_dir, images_dir)
     logging.info(images_dir)
+    logging.info(images_dir)
 
     out_configs_dir = os.path.join(outdir, '_configs')
     os.makedirs(out_configs_dir, exist_ok=True)
     configs_dir = _get_abspath_from_rel(os.path.join(examples_dir, 'configs'), srcdir)
     _copy_files(configs_dir, out_configs_dir)
     logging.info(configs_dir)
+    logging.info(out_configs_dir)
 
 
 def _copy_files(source, destination):
@@ -81,6 +83,7 @@ def _copy_files(source, destination):
 
         previous_name = os.path.join(source, filename)
         shutil.copy(previous_name, new_name)
+        logging.info(f'{previous_name} -> {new_name}')
 
 
 def _get_abspath_from_rel(relative_path, home):
