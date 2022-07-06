@@ -56,6 +56,7 @@ suppress_warnings = ["myst.mathjax"]
 generate_graphs = True
 examples_dir = '../examples'
 locally = False
+force_clone = True
 
 # -- Options for HTML output -------------------------------------------------
 

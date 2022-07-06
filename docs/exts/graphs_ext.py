@@ -21,6 +21,11 @@ def setup(app):
         default=True,
         rebuild=False,
     )
+    app.add_config_value(
+        'force_clone',
+        default=True,
+        rebuild=False,
+    )
 
     app.connect('builder-inited', startup)
     app.connect('build-finished', cleanup)
@@ -39,7 +44,7 @@ def startup(app):
     from create_graphs import main as create_graphs_
     from create_rst import main as create_rst_
 
-    create_graphs_()
+    create_graphs_(force_clone=app.builder.config.force_clone)
     create_rst_(move=True, locally=app.builder.config.locally)
 
     os.chdir(cwd)

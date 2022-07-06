@@ -1,6 +1,7 @@
 
 import os
 import logging
+import shutil
 
 from git import Repo  # gitpython
 
@@ -19,9 +20,13 @@ from utils import (
 TMP_DIR = '_tmp'
 
 
-def clone_repo(repo_name, repo_data):
+def clone_repo(repo_name, repo_data, force=False):
     repo_url = get_repo_url(repo_data)
     repo_dir = os.path.join(TMP_DIR, repo_name)
+
+    if force and os.path.exists(repo_dir):
+        shutil.rmtree(repo_dir)
+
     if not os.path.exists(repo_dir):
         Repo.clone_from(repo_url, repo_dir)
 
@@ -40,7 +45,7 @@ def draw_graph(repo_name, repo_dir, graph_data):
              view=False)
 
 
-def main():
+def main(force_clone=False):
     os.makedirs(TMP_DIR, exist_ok=True)
     os.makedirs(GRAPHS_DIR, exist_ok=True)
 
@@ -51,7 +56,7 @@ def main():
 
         repo_data = data.get(repo_name)
 
-        repo_dir = clone_repo(repo_name, repo_data)
+        repo_dir = clone_repo(repo_name, repo_data, force=force_clone)
 
         draw_graph(repo_name, repo_dir, repo_data)
 
@@ -63,4 +68,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(force_clone=False)
