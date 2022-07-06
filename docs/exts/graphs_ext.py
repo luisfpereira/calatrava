@@ -40,6 +40,7 @@ def startup(app):
         return
 
     logging.info(app.builder.outdir)
+    print(dir(app.builder))
 
     examples_dir = _get_abspath_from_rel(app.builder.config.examples_dir, app.builder.srcdir)
     sys.path.insert(0, examples_dir)
@@ -72,7 +73,9 @@ def cleanup(app, exception):
     logging.info(images_dir)
     logging.info(images_dir)
 
-    out_configs_dir = os.path.join(outdir, '_configs')
+    # out_configs_dir = os.path.join(outdir, '_configs')
+    out_configs_dir= "/home/docs/checkouts/readthedocs.org/user_builds/calatrava/checkouts/latest/docs/_build/html/_configs"
+
     os.makedirs(out_configs_dir, exist_ok=True)
     configs_dir = _get_abspath_from_rel(os.path.join(examples_dir, 'configs'), srcdir)
     _copy_files(configs_dir, out_configs_dir)
