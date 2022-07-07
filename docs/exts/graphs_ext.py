@@ -41,6 +41,7 @@ def startup(app):
 
     logging.info(app.builder.outdir)
     logging.info(os.path.exists(app.builder.outdir))
+    logging.info(os.listdir(os.path.join(app.builder.outdir, '_images')))
 
     examples_dir = _get_abspath_from_rel(app.builder.config.examples_dir, app.builder.srcdir)
     sys.path.insert(0, examples_dir)
