@@ -40,7 +40,7 @@ def startup(app):
         return
 
     logging.info(app.builder.outdir)
-    print(dir(app.builder))
+    logging.info(os.path.exists(app.builder.outdir))
 
     examples_dir = _get_abspath_from_rel(app.builder.config.examples_dir, app.builder.srcdir)
     sys.path.insert(0, examples_dir)
