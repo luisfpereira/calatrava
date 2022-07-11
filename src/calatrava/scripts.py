@@ -1,6 +1,6 @@
 
 import logging
-import copy
+import os
 
 from calatrava.config import load_from_config
 from calatrava.viz.graphviz.uml import (
@@ -16,16 +16,19 @@ logging.basicConfig(format='%(message)s', level=logging.INFO)
 
 
 def _handle_variadic_input(args):
+    package_names = []
+
     packages = []
     imports = []
 
     args = list(args)
     while len(args) > 0:
-        arg = args.pop()
+        arg = args.pop(0)
 
-        if len(arg.split('.')) > 1 or arg in packages:
+        if len(arg.split('.')) > 1 or arg in package_names:
             imports.append(arg)
         else:
+            package_names.append(arg.split(os.sep)[-1])
             packages.append(arg)
 
     return packages, imports
