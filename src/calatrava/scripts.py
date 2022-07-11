@@ -1,5 +1,6 @@
 
 import logging
+import copy
 
 from calatrava.config import load_from_config
 from calatrava.viz.graphviz.uml import (
@@ -18,8 +19,11 @@ def _handle_variadic_input(args):
     packages = []
     imports = []
 
-    for arg in args:
-        if len(arg.split('.')) > 1:
+    args = list(args)
+    while len(args) > 0:
+        arg = args.pop()
+
+        if len(arg.split('.')) > 1 or arg in packages:
             imports.append(arg)
         else:
             packages.append(arg)
@@ -35,7 +39,10 @@ def parse_packages(args):
 
     if imports:
         for import_ in imports:
-            package_manager.find(import_)
+            if len(import_.split('.')) > 1:
+                package_manager.find(import_)
+            else:
+                package_manager.find_package(import_)
     else:
         package_manager.find_all()
 

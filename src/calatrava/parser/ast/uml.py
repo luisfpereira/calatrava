@@ -263,6 +263,10 @@ class PackageManager:
         package = self._get_package(long_name)
         return package.visitor.find_subpackage(long_name)
 
+    def find_package(self, long_name):
+        package = self._get_package(long_name)
+        return package.visitor.find_all()
+
     def find_all(self):
         classes = []
         for package in self._packages_ls:
