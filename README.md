@@ -9,12 +9,18 @@ It relies on its own parser implementation (built on top of `ast`) to parse info
 
 ## Installation
 
-
-`calatrava` is available in [PyPI](https://pypi.org/project/calatrava/):
+`calatrava` is not available in [PyPI](https://pypi.org/) yet (it will be soon). Therefore, install it with
 
 
 ```bash
-pip install calatrava
+pip install git+https://github.com/lpereira95/calatrava.git@master
+```
+
+
+If you also want to install requirements, do
+
+```bash
+pip install git+https://github.com/lpereira95/calatrava.git@master#egg=calatrava
 ```
 
 
