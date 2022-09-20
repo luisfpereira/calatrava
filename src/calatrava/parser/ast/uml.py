@@ -1,12 +1,14 @@
 
 import ast
-from pathlib import Path
-import os
-import tokenize
-import glob
 from collections import namedtuple
-import pkgutil
-import logging
+
+from calatrava.parser.ast.node_visitors import (
+    find_by_name,
+    find_in_imports,
+    collect_star_imports,
+    collect_attr_long_name,
+    collect_assign_targets,
+)
 
 
 PYTHON_PROTECTED_CLASSES = (
@@ -14,124 +16,11 @@ PYTHON_PROTECTED_CLASSES = (
 )
 
 
-def find_by_name(root, type_, name):
-    for node in ast.walk(root):
-        if isinstance(node, type_) and node.name == name:
-            return node
+class ModuleMixins:
 
-
-def _get_import_from_module_name(node, module_name, module_is_init=False):
-    # ast.ImportFrom
-    if node.level:  # handle local imports
-        level = -(node.level - 1) if module_is_init else -node.level
-        if level == 0:
-            level = None
-        node_module = '.'.join(module_name.split('.')[:level])
-        if node.module:
-            node_module += f'.{node.module}'
-    else:
-        node_module = node.module
-
-    return node_module
-
-
-def find_in_imports(root, search_name, module_name, module_is_init=False):
-    for node in ast.walk(root):
-        if not isinstance(node, (ast.Import, ast.ImportFrom)):
-            continue
-
-        for name in node.names:
-            if search_name == name.name or search_name == name.asname:
-                if isinstance(node, ast.Import):
-                    return name.name
-                else:  # ast.ImportFrom
-                    node_module = _get_import_from_module_name(
-                        node, module_name, module_is_init)
-
-                    return f'{node_module}.{name.name}'
-
-
-def collect_star_imports(root, module_name, module_is_init):
-    star_imports = []
-    for node in ast.walk(root):
-        if not isinstance(node, ast.ImportFrom):
-            continue
-
-        if node.names[0].name == '*':
-            module_name = _get_import_from_module_name(
-                node, module_name, module_is_init)
-            star_imports.append(module_name)
-
-    return star_imports
-
-
-class _AttributeVisitor(ast.NodeVisitor):
-
-    def __init__(self):
-        self._long_name_ls = []
-
-    def collect_long_name(self, node):
-        self._long_name_ls = []
-
-        self.visit(node)
-
-        return '.'.join(reversed(self._long_name_ls))
-
-    def visit_Attribute(self, node):
-        self._long_name_ls.append(node.attr)
-        self.visit(node.value)
-
-    def visit_Name(self, node):
-        self._long_name_ls.append(node.id)
-
-
-_attribute_visitor = _AttributeVisitor()
-
-
-def collect_attr_long_name(node):
-    # ast.Attribute
-    return _attribute_visitor.collect_long_name(node)
-
-
-class _AssignVisitor(ast.NodeVisitor):
-
-    def __init__(self):
-        self._target_names = []
-
-    def collect_targets(self, node):
-        self._target_names = []
-
-        for node_ in node.targets:
-            self.visit(node_)
-
-        return self._target_names
-
-    def visit_Name(self, node):
-        self._target_names.append(node.id)
-
-    def visit_Tuple(self, node):
-        for node_ in node.dims:
-            self.visit(node_)
-
-    def visit_Attribute(self, node):
-        self._target_names.append(collect_attr_long_name(node))
-
-
-_assign_visitor = _AssignVisitor()
-
-
-def collect_assign_targets(node):
-    # ast.Assign
-    return _assign_visitor.collect_targets(node)
-
-
-class ModuleVisitor:
-
-    def __init__(self, module):
-        self.module = module
-        self.class_visitor = ClassVisitor(module)
-
-        self.root = self._load_root()
+    def __init__(self, ClassVisitor, **kwargs):
+        super().__init__(**kwargs)
+        self.class_visitor = ClassVisitor(self)
 
         self.import_class_map = {}
         self.not_found = {}
@@ -141,11 +30,8 @@ class ModuleVisitor:
     def classes(self):
         return self.class_visitor.classes
 
-    def _load_root(self):
-        with tokenize.open(self.module.path) as file:
-            root = ast.parse(file.read(), self.module.path)
-
-        return root
+    def get_classes(self):
+        return {class_.long_name: class_ for class_ in self.classes}
 
     @property
     def _already_found(self):
@@ -212,35 +98,16 @@ class ModuleVisitor:
         return self.class_visitor.update_inheritance()
 
 
-class PackageManager:
+class PackageManagerMixins:
 
-    def __init__(self, packages_ls):
-        self._packages_ls = packages_ls
-
-        self._set_manager(packages_ls)
+    def __init__(self, Class, **kwargs):
+        super().__init__(**kwargs)
 
         self.Class = Class
         self._unknown_classes = {}
 
-    def _set_manager(self, packages_ls):
-        for package in packages_ls:
-            package.visitor.manager = self
-
-    def _get_package(self, long_name, raise_=False):
-        package_name = long_name.split('.')[0]
-        package = self.packages.get(package_name, None)
-
-        if raise_ and package is None:
-            raise Exception(f"Cannot find package `{package_name}`")
-
-        return package
-
     def add_unknown_class(self, class_):
         self._unknown_classes[class_.long_name] = class_
-
-    @property
-    def packages(self):
-        return {package.name: package for package in self._packages_ls}
 
     def find_class(self, long_name, visited=()):
         package = self._get_package(long_name)
@@ -299,26 +166,10 @@ class PackageManager:
         return classes
 
 
-class PackageVisitor:
+class PackageMixins:
 
-    def __init__(self, package):
-        self.package = package
-
-        self.modules = []
-
-        self.all_modules_names = self._get_all_modules_names()
-        self.all_subpackages_names = self._get_all_subpackages_names()
-
-        self.Module = Module
-        self.manager = self  # to work in basic case
-
-    def _get_module(self, long_name):
-        module = self.package.modules.get(long_name, None)
-        if module is None:
-            module = self.Module(long_name, self.package)
-            self.modules.append(module)
-
-        return module
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def find_class(self, long_name, visited=()):
         long_name_ls = long_name.split('.')
@@ -364,23 +215,6 @@ class PackageVisitor:
 
         return self.find_class(import_)
 
-    def _get_all_modules_names(self):
-        sep = os.path.sep
-        paths = glob.glob(f'{self.package.path}{sep}**{sep}*.py', recursive=True)
-        imports = [str(Path(path).relative_to(self.package.root_path)).split('.')[0].replace(os.path.sep, '.') for path in paths]
-
-        # remove init
-        imports = [import_[:-9] if import_.endswith('__init__') else import_ for import_ in imports]
-
-        return set(imports)
-
-    def _get_all_subpackages_names(self):
-        sep = os.path.sep
-        paths = [path for path in glob.glob(f'{self.package.path}{sep}*{sep}', recursive=True) if not path.endswith('__pycache__/')]
-        imports = [str(Path(path).relative_to(self.package.root_path)).split('.')[0].replace(os.path.sep, '.') for path in paths]
-
-        return set(imports)
-
     def update_inheritance(self):
         done = True
         for module in self.modules:
@@ -389,81 +223,6 @@ class PackageVisitor:
                 done = False
 
         return done
-
-
-class Package:
-
-    def __init__(self, path):
-
-        path_exists = os.path.exists(path)
-        if not path_exists or (path_exists and not os.path.isdir(path)):
-            # FIXME: will fail in tons of cases
-            package_name = path
-            package = pkgutil.get_loader(package_name)
-
-            path = f'{os.path.sep}'.join(package.path.split(os.path.sep)[:-1])
-            logging.info(f"Found `{package_name}` in `{path}`")
-
-        self.path = Path(path)
-
-        self.visitor = PackageVisitor(self)
-
-    @property
-    def modules(self):
-        return {module.long_name: module for module in self.visitor.modules}
-
-    @property
-    def name(self):
-        return str(self.path).split(os.path.sep)[-1]
-
-    @property
-    def root_path(self):
-        return self.path.parent
-
-    def get_classes(self):
-        classes = {}
-        for module in self.modules.values():
-            classes |= module.get_classes()
-
-        return classes
-
-
-class Module:
-
-    def __init__(self, long_name, package):
-        self.long_name = long_name
-        self.package = package
-
-        self.visitor = ModuleVisitor(self)
-
-    @property
-    def is_init(self):
-        return os.path.exists(self._get_init_path())
-
-    @property
-    def package_root(self):
-        return self.package.root_path
-
-    def _get_path_beginning(self):
-        return self.package_root / f"{self.long_name.replace('.', os.path.sep)}"
-
-    def _get_init_path(self, path_beginning=None):
-        path_beginning = path_beginning or self._get_path_beginning()
-        return f"{path_beginning}{os.path.sep}__init__.py"
-
-    @property
-    def path(self):
-        name = self._get_path_beginning()
-        path = f"{name}.py"
-
-        return path if os.path.exists(path) else self._get_init_path(name)
-
-    @property
-    def classes(self):
-        return {class_.name: class_ for class_ in self.visitor.classes}
-
-    def get_classes(self):
-        return {class_.long_name: class_ for class_ in self.visitor.classes}
 
 
 TmpBase = namedtuple('TmpBase', ['name', 'is_import'])
