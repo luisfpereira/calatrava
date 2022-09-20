@@ -21,21 +21,27 @@ class ModuleRecordCreator(RecordCreator):
         dot.node(module.id, label=module.long_name, **self.style)
 
 
-def create_graph(package_manager):
+def create_graph(package_manager, exclude=(), add_to_modules_names=None):
     # TODO
     # for now is very particular
+
+    if add_to_modules_names is None:
+        add_to_modules_names = {}
 
     # collect imports and modules
     all_internal_imports = []
     for package in package_manager.packages_ls:
-        modules_names = package.modules_names
+        modules_names = package.modules_names | set(add_to_modules_names.get(package.name, []))
         for module in package.modules_ls:
             all_internal_imports.extend(
                 module.get_module_level_internal_imports(modules_names)
             )
 
-    all_internal_imports = set(all_internal_imports)
+    all_internal_imports = set(all_internal_imports) - set(exclude)
     all_parsed_modules = package_manager.modules
+    for exclude_import in exclude:
+        if exclude_import in all_parsed_modules:
+            del all_parsed_modules[exclude_import]
 
     dot = graphviz.Digraph()
 
