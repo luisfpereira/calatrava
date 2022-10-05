@@ -9,29 +9,35 @@ from calatrava.parser.ast.node_visitors import (
     collect_attr_long_name,
     collect_assign_targets,
 )
+from calatrava.parser.ast.base import (
+    BaseModule,
+)
 
 
 PYTHON_PROTECTED_CLASSES = (
     'Exception', 'type', 'object', 'dict', 'list', 'tuple', 'set',
 )
 
+# TODO: create factories
+
 
 class ModuleMixins:
 
-    def __init__(self, ClassVisitor, **kwargs):
+    def __init__(self, ClassesVisitor, **kwargs):
         super().__init__(**kwargs)
-        self.class_visitor = ClassVisitor(self)
+        self.classes_visitor = ClassesVisitor(self)
 
         self.import_class_map = {}
         self.not_found = {}
         self.not_found_trial = {}
 
     @property
-    def classes(self):
-        return self.class_visitor.classes
+    def classes_ls(self):
+        return self.classes_visitor.classes_ls
 
-    def get_classes(self):
-        return {class_.long_name: class_ for class_ in self.classes}
+    @property
+    def classes(self):
+        return {class_.long_name: class_ for class_ in self.classes_ls}
 
     @property
     def _already_found(self):
@@ -49,12 +55,12 @@ class ModuleMixins:
 
         # try in python protected names
         if name in PYTHON_PROTECTED_CLASSES:
-            return self.module.package.visitor.manager.find_class(name)
+            return self.module.package.manager.find_class(name)
 
         # try in definitions
         node = find_by_name(self.root, ast.ClassDef, name)
         if node is not None:
-            return self.class_visitor.visit(node)
+            return self.classes_visitor.visit(node)
 
         # try in imports
         long_name = find_in_imports(
@@ -83,8 +89,8 @@ class ModuleMixins:
 
         if not visited:
             # not found (e.g. assignment)
-            class_ = self.class_visitor.Class(name, self.module,
-                                              found=False)
+            class_ = self.classes_visitor.Class(name, self.module,
+                                                found=False)
             self.module.package.visitor.manager.add_unknown_class(class_)
             self.not_found[name] = class_
 
@@ -92,10 +98,19 @@ class ModuleMixins:
 
     def find_all_classes(self):
         class_nodes = [node for node in self.root.body if isinstance(node, ast.ClassDef)]
-        return [self.class_visitor.visit(node) for node in class_nodes]
+        return [self.classes_visitor.visit(node) for node in class_nodes]
 
     def update_inheritance(self):
-        return self.class_visitor.update_inheritance()
+        return self.classes_visitor.update_inheritance()
+
+
+class Module(ModuleMixins, BaseModule):
+    def __init__(self, long_name, package, ClassesVisitor=None):
+        if ClassesVisitor is None:
+            ClassesVisitor = BasicClassesVisitor
+
+        super().__init__(long_name=long_name, package=package,
+                         ClassesVisitor=ClassesVisitor)
 
 
 class PackageManagerMixins:
@@ -120,19 +135,6 @@ class PackageManagerMixins:
             return class_
         else:
             return package.visitor.find_class(long_name, visited=visited)
-
-    def find_module(self, long_name):
-        package = self._get_package(long_name, raise_=True)
-
-        return package.visitor.find_module(long_name)
-
-    def find_subpackage(self, long_name):
-        package = self._get_package(long_name)
-        return package.visitor.find_subpackage(long_name)
-
-    def find_package(self, long_name):
-        package = self._get_package(long_name)
-        return package.visitor.find_all()
 
     def find_all(self):
         classes = []
@@ -228,46 +230,21 @@ class PackageMixins:
 TmpBase = namedtuple('TmpBase', ['name', 'is_import'])
 
 
-class Class:
+class BasicClass:
 
     def __init__(self, name, module, found=True):
-        self.module = module
         self.name = name
-        self.attrs = []
-        self.methods = []
+        self.module = module
 
-        self.cls_attrs = []
+        self._found = found
+
         self._tmp_bases = []
         self.bases = []
 
         self.children = []
-        self._found = found
 
     def __repr__(self):
         return f'<class: {self.long_name}>'
-
-    @property
-    def all_attrs(self):
-        return self.attrs + self.base_attrs
-
-    @property
-    def base_attrs(self):
-        attrs = []
-        for base in self.bases:
-            attrs.extend(base.all_attrs)
-
-        return attrs
-
-    @property
-    def all_methods(self):
-        return self.methods + self.base_methods
-
-    @property
-    def base_methods(self):
-        methods = []
-        for base in self.bases:
-            methods.extend(base.all_methods)
-        return methods
 
     @property
     def long_name(self):
@@ -324,6 +301,112 @@ class Class:
         self.bases.append(base)
         base.add_child(self)
 
+    def add_child(self, child):
+        self.children.append(child)
+
+
+class BasicClassesVisitor(ast.NodeVisitor):
+
+    def __init__(self, module, Class=BasicClass):
+        self.module = module
+
+        self.classes_ls = []
+        self.stack = []
+
+        self.Class = Class
+
+    @property
+    def current_class(self):
+        return self._get_last_from_stack(self.Class)
+
+    @property
+    def current_obj(self):
+        return self.stack[-1]
+
+    def _get_last_from_stack(self, type_):
+        for obj in reversed(self.stack):
+            if isinstance(obj, type_):
+                return obj
+
+    def _get_prefix_from_stack(self):
+        if self.stack:
+            return self.stack[-1].name
+        else:
+            return ''
+
+    def visit_ClassDef(self, node):
+        class_ = self.Class(self._get_obj_name(node), self.module)
+
+        class_.add_tmp_bases(node)
+
+        self.stack.append(class_)
+        self.classes_ls.append(class_)
+
+        for inner_node in node.body:
+            self.visit(inner_node)
+
+        self.stack.pop()
+
+        return class_
+
+    def _get_obj_name(self, node):
+        name = node.name
+        prefix = self._get_prefix_from_stack()
+        if prefix:
+            name = f'{prefix}.{name}'
+
+        return name
+
+    def update_inheritance(self):
+        done = True
+        for class_ in self.classes_ls:
+            for tmp_base in class_.get_tmp_bases():
+                done = False
+                # TODO: need to be simplified (requires to much knownledge on the architecture)
+                if tmp_base.is_import:
+                    base = self.module.package.visitor.manager.find_class(tmp_base.name)
+                else:
+                    base = self.module.visitor.find_class(tmp_base.name)
+
+                class_.add_base(base)
+
+            class_.reset_tmp_bases()
+
+        return done
+
+
+class Class(BasicClass):
+    # TODO: probably via mixins?
+
+    def __init__(self, name, module, found=True):
+        super().__init__(name, module, found=True)
+
+        self.attrs = []
+        self.methods = []
+
+    @property
+    def all_attrs(self):
+        return self.attrs + self.base_attrs
+
+    @property
+    def base_attrs(self):
+        attrs = []
+        for base in self.bases:
+            attrs.extend(base.all_attrs)
+
+        return attrs
+
+    @property
+    def all_methods(self):
+        return self.methods + self.base_methods
+
+    @property
+    def base_methods(self):
+        methods = []
+        for base in self.bases:
+            methods.extend(base.all_methods)
+        return methods
+
     def add_attr(self, attr_name):
         self.attrs.append(attr_name)
 
@@ -332,9 +415,6 @@ class Class:
 
     def add_method(self, method):
         self.methods.append(method)
-
-    def add_child(self, child):
-        self.children.append(child)
 
 
 class Method:
@@ -388,43 +468,22 @@ class Method:
             self.decorator_list.append(name)
 
 
-class ClassVisitor(ast.NodeVisitor):
+class ClassesVisitor(BasicClassesVisitor):
+    # TODO: probably via mixins?
 
-    def __init__(self, module):
-        self.module = module
+    def __init__(self, module, Class):
+        super().__init__(module, Class)
 
-        self.classes = []
-        self.stack = []
-
-        self.Class = Class
         self.Method = Method
 
     @property
     def in_class(self):
+        # TODO: is it required?
         return isinstance(self.stack[-1], Class)
-
-    @property
-    def current_class(self):
-        return self._get_last_from_stack(self.Class)
 
     @property
     def current_method(self):
         return self._get_last_from_stack(self.Method)
-
-    @property
-    def current_obj(self):
-        return self.stack[-1]
-
-    def _get_last_from_stack(self, type_):
-        for obj in reversed(self.stack):
-            if isinstance(obj, type_):
-                return obj
-
-    def _get_prefix_from_stack(self):
-        if self.stack:
-            return self.stack[-1].name
-        else:
-            return ''
 
     def visit_Assign(self, node):
         current_class = self.current_class
@@ -439,21 +498,6 @@ class ClassVisitor(ast.NodeVisitor):
             elif len(target_name_ls) == 1:
                 current_obj.add_local_var(target_name)
 
-    def visit_ClassDef(self, node):
-        class_ = self.Class(self._get_obj_name(node), self.module)
-
-        class_.add_tmp_bases(node)
-
-        self.stack.append(class_)
-        self.classes.append(class_)
-
-        for inner_node in node.body:
-            self.visit(inner_node)
-
-        self.stack.pop()
-
-        return class_
-
     def visit_FunctionDef(self, node):
         func = self.Method(self._get_obj_name(node), self.current_class)
         func.add_decorators(node.decorator_list)
@@ -464,27 +508,3 @@ class ClassVisitor(ast.NodeVisitor):
             self.visit(inner_node)
 
         self.stack.pop()
-
-    def _get_obj_name(self, node):
-        name = node.name
-        prefix = self._get_prefix_from_stack()
-        if prefix:
-            name = f'{prefix}.{name}'
-
-        return name
-
-    def update_inheritance(self):
-        done = True
-        for class_ in self.classes:
-            for tmp_base in class_.get_tmp_bases():
-                done = False
-                if tmp_base.is_import:
-                    base = self.module.package.visitor.manager.find_class(tmp_base.name)
-                else:
-                    base = self.module.visitor.find_class(tmp_base.name)
-
-                class_.add_base(base)
-
-            class_.reset_tmp_bases()
-
-        return done

@@ -39,6 +39,11 @@ class BasePackageManager:
             modules |= package.modules
         return modules
 
+    def find_module(self, long_name):
+        package = self._get_package(long_name, raise_=True)
+
+        return package.find_module(long_name)
+
     def find_modules(self):
         modules = []
         for package in self.packages_ls:
@@ -68,7 +73,7 @@ class BasePackage:
 
         self.manager = self  # to work in basic case
 
-        self.Module = Module  # otherwise is cls attribute
+        self.Module = Module
 
     @property
     def modules(self):
