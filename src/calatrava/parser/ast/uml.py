@@ -1,4 +1,9 @@
 
+from abc import (
+    ABCMeta,
+    abstractmethod,
+)
+
 import ast
 from collections import namedtuple
 
@@ -11,6 +16,8 @@ from calatrava.parser.ast.node_visitors import (
 )
 from calatrava.parser.ast.base import (
     BaseModule,
+    BasePackage,
+    BasePackageManager,
 )
 
 
@@ -41,11 +48,13 @@ class ModuleMixins:
 
     @property
     def _already_found(self):
-        return self.module.classes | self.import_class_map | self.not_found | self.not_found_trial
+        return self.classes | self.import_class_map | self.not_found | self.not_found_trial
 
     def find_class(self, name, visited=()):
+        # TODO: try to recode with pipeline? (specially to e.g. avoid checking stars)
+
         # visited only for possible recursion due to star imports
-        if self.module in visited:
+        if self in visited:
             return
 
         # try in already found
@@ -55,7 +64,7 @@ class ModuleMixins:
 
         # try in python protected names
         if name in PYTHON_PROTECTED_CLASSES:
-            return self.module.package.manager.find_class(name)
+            return self.package.manager.find_class(name)
 
         # try in definitions
         node = find_by_name(self.root, ast.ClassDef, name)
@@ -64,24 +73,24 @@ class ModuleMixins:
 
         # try in imports
         long_name = find_in_imports(
-            self.root, name, self.module.long_name, self.module.is_init)
+            self.root, name, self.long_name, self.is_init)
         if long_name is not None:
-            class_ = self.module.package.visitor.manager.find_class(long_name)
+            class_ = self.package.manager.find_class(long_name)
             self.import_class_map[name] = class_
             return class_
 
         # try in start imports
-        star_imports = collect_star_imports(self.root, self.module.long_name,
-                                            self.module.is_init)
+        star_imports = collect_star_imports(self.root, self.long_name,
+                                            self.is_init)
         if star_imports:
             if visited:
-                visited.append(self.module)
+                visited.append(self)
             else:
-                visited = [self.module]
+                visited = [self]
 
             for star_import in star_imports:
                 long_name = f'{star_import}.{name}'
-                class_ = self.module.package.visitor.manager.find_class(
+                class_ = self.package.manager.find_class(
                     long_name, visited=visited)
                 if class_ is not None:
                     self.import_class_map[name] = class_
@@ -89,9 +98,10 @@ class ModuleMixins:
 
         if not visited:
             # not found (e.g. assignment)
-            class_ = self.classes_visitor.Class(name, self.module,
-                                                found=False)
-            self.module.package.visitor.manager.add_unknown_class(class_)
+            # TODO: need to update dummy class
+            class_ = DummyClass(name, self)
+
+            self.package.manager.add_unknown_class(class_)
             self.not_found[name] = class_
 
             return class_
@@ -105,20 +115,88 @@ class ModuleMixins:
 
 
 class Module(ModuleMixins, BaseModule):
-    def __init__(self, long_name, package, ClassesVisitor=None):
-        if ClassesVisitor is None:
-            ClassesVisitor = BasicClassesVisitor
-
+    def __init__(self, long_name, package, ClassesVisitor):
         super().__init__(long_name=long_name, package=package,
                          ClassesVisitor=ClassesVisitor)
 
 
+class PackageMixins:
+
+    def find_class(self, long_name, visited=()):
+        # TODO: review
+        long_name_ls = long_name.split('.')
+        i = 0
+        while True:
+            i += 1
+
+            if i > len(long_name_ls):
+                raise Exception(f'Cannot find `{long_name}`')
+
+            module_name = '.'.join(long_name_ls[:-i])
+            if module_name in self.all_modules_names:
+                class_name = '.'.join(long_name_ls[-i:])
+                break
+
+        module = self.find_module(module_name)
+        return module.find_class(class_name, visited=visited)
+
+    def find_module_classes(self, module_name):
+        module = self.find_module(module_name)
+
+        return module.find_all_classes()
+
+    def find_modules_classes(self, module_names):
+        all_classes = []
+        for module_name in module_names:
+            all_classes.extend(self.find_module(module_name))
+
+        return all_classes
+
+    def find_subpackage_classes(self, subpackage_name):
+        module_names = [module_name for module_name in self.all_modules_names if module_name.startswith(subpackage_name)]
+        return self.find_modules_classes(module_names)
+
+    def find_all_classes(self):
+        return self.find_modules_classes(self.all_modules_names)
+
+    def find(self, import_):
+        if import_ in self.all_subpackages_names:
+            return self.find_subpackage(import_)
+        elif import_ in self.all_modules_names:
+            return self.find_module(import_)
+
+        return self.find_class(import_)
+
+    def update_inheritance(self):
+        done = True
+        for module in self.modules:
+            done_ = module.update_inheritance()
+            if not done_:
+                done = False
+
+        return done
+
+
+def _get_classes_visitor(type_):
+    if type_ == "basic":
+        return lambda module: BasicClassesVisitor(module, Class=BasicClass)
+
+
+class Package(PackageMixins, BasePackage):
+    def __init__(self, path, Module=Module, classes_visitor="basic", **kwargs):
+        if classes_visitor is not None:
+            kwargs.setdefault("ClassesVisitor", _get_classes_visitor(classes_visitor))
+
+        Module_ = lambda long_name, package: Module(
+            long_name, package, **kwargs)
+
+        super().__init__(path=path, Module=Module_)
+
+
 class PackageManagerMixins:
 
-    def __init__(self, Class, **kwargs):
-        super().__init__(**kwargs)
-
-        self.Class = Class
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._unknown_classes = {}
 
     def add_unknown_class(self, class_):
@@ -130,28 +208,28 @@ class PackageManagerMixins:
             return
         elif package is None:
             class_ = self._unknown_classes.get(long_name,
-                                               self.Class(long_name, None))
+                                               DummyClass(long_name))
             self.add_unknown_class(class_)
             return class_
         else:
-            return package.visitor.find_class(long_name, visited=visited)
+            return package.find_class(long_name, visited=visited)
 
-    def find_all(self):
+    def find_all_classes(self):
         classes = []
         for package in self._packages_ls:
-            classes.extend(package.visitor.find_all())
+            classes.extend(package.find_all_classes())
 
         return classes
 
     def find(self, import_):
         package = self._get_package(import_, raise_=True)
-        return package.visitor.find(import_)
+        return package.find(import_)
 
     def update_inheritance(self):
         while True:
             done = True
             for package in self._packages_ls:
-                done_ = package.visitor.update_inheritance()
+                done_ = package.update_inheritance()
                 if not done_:
                     done = False
 
@@ -168,90 +246,20 @@ class PackageManagerMixins:
         return classes
 
 
-class PackageMixins:
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def find_class(self, long_name, visited=()):
-        long_name_ls = long_name.split('.')
-        i = 0
-        while True:
-            i += 1
-
-            if i > len(long_name_ls):
-                raise Exception(f'Cannot find `{long_name}`')
-
-            module_name = '.'.join(long_name_ls[:-i])
-            if module_name in self.all_modules_names:
-                class_name = '.'.join(long_name_ls[-i:])
-                break
-
-        module = self._get_module(module_name)
-        return module.visitor.find_class(class_name, visited=visited)
-
-    def find_module(self, long_name):
-        module = self._get_module(long_name)
-
-        return module.visitor.find_all_classes()
-
-    def _find_modules(self, module_names):
-        all_classes = []
-        for module_name in module_names:
-            all_classes.extend(self.find_module(module_name))
-
-        return all_classes
-
-    def find_subpackage(self, long_name):
-        module_names = [module_name for module_name in self.all_modules_names if module_name.startswith(long_name)]
-        return self._find_modules(module_names)
-
-    def find_all(self):
-        return self._find_modules(self.all_modules_names)
-
-    def find(self, import_):
-        if import_ in self.all_subpackages_names:
-            return self.find_subpackage(import_)
-        elif import_ in self.all_modules_names:
-            return self.find_module(import_)
-
-        return self.find_class(import_)
-
-    def update_inheritance(self):
-        done = True
-        for module in self.modules:
-            done_ = module.visitor.update_inheritance()
-            if not done_:
-                done = False
-
-        return done
+class PackageManager(PackageManagerMixins, BasePackageManager):
+    pass
 
 
 TmpBase = namedtuple('TmpBase', ['name', 'is_import'])
 
 
-class BasicClass:
-
-    def __init__(self, name, module, found=True):
+class BaseClass(metaclass=ABCMeta):
+    def __init__(self, name):
         self.name = name
-        self.module = module
 
-        self._found = found
-
-        self._tmp_bases = []
-        self.bases = []
-
-        self.children = []
-
-    def __repr__(self):
-        return f'<class: {self.long_name}>'
-
-    @property
+    @abstractmethod
     def long_name(self):
-        if self.module:
-            return f'{self.module.long_name}.{self.name}'
-        else:
-            return self.name
+        pass
 
     @property
     def short_name(self):
@@ -263,7 +271,38 @@ class BasicClass:
 
     @property
     def found(self):
-        return self._found and self.module is not None
+        return self._found
+
+
+class DummyClass(BaseClass):
+    def __init__(self, name):
+        super().__init__(name)
+        self._found = False
+
+    @property
+    def long_name(self):
+        return self.name
+
+
+class BasicClass(BaseClass):
+
+    def __init__(self, name, module):
+        super().__init__(name=name)
+
+        self.module = module
+
+        self._tmp_bases = []
+        self.bases = []
+
+        self.children = []
+        self._found = True
+
+    def __repr__(self):
+        return f'<class: {self.long_name}>'
+
+    @property
+    def long_name(self):
+        return f'{self.module.long_name}.{self.name}'
 
     @property
     def is_abstract(self):
@@ -307,7 +346,7 @@ class BasicClass:
 
 class BasicClassesVisitor(ast.NodeVisitor):
 
-    def __init__(self, module, Class=BasicClass):
+    def __init__(self, module, Class):
         self.module = module
 
         self.classes_ls = []
@@ -362,11 +401,10 @@ class BasicClassesVisitor(ast.NodeVisitor):
         for class_ in self.classes_ls:
             for tmp_base in class_.get_tmp_bases():
                 done = False
-                # TODO: need to be simplified (requires to much knownledge on the architecture)
                 if tmp_base.is_import:
-                    base = self.module.package.visitor.manager.find_class(tmp_base.name)
+                    base = self.module.package.manager.find_class(tmp_base.name)
                 else:
-                    base = self.module.visitor.find_class(tmp_base.name)
+                    base = self.module.find_class(tmp_base.name)
 
                 class_.add_base(base)
 
@@ -378,8 +416,8 @@ class BasicClassesVisitor(ast.NodeVisitor):
 class Class(BasicClass):
     # TODO: probably via mixins?
 
-    def __init__(self, name, module, found=True):
-        super().__init__(name, module, found=True)
+    def __init__(self, name, module):
+        super().__init__(name, module)
 
         self.attrs = []
         self.methods = []
