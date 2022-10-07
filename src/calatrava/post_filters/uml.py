@@ -5,6 +5,7 @@ from calatrava.utils import import_class_from_str
 
 
 def apply_filters(filters, classes):
+    # mutable
     for filter_ in filters:
         filter_.filter(classes)
 
@@ -37,14 +38,14 @@ def _find_classes_by_attr(classes, attrs, attr_name="name"):
     return [class_ for class_ in classes if getattr(class_, attr_name) in attrs]
 
 
-def _find_all_related(class_, related=None, ignore=()):
+def _find_connected(class_, related=None, ignore=()):
     if related is None:
         related = []
 
     for child in class_.bases + class_.children:
         if child not in ignore and child not in related:
             related.append(child)
-            _find_all_related(child, related=related, ignore=ignore)
+            _find_connected(child, related=related, ignore=ignore)
 
     return related
 
@@ -69,6 +70,14 @@ def _find_related(class_, related=None, ignore=(), look_down=True):
                           look_down=True)
 
     return related
+
+
+def _remove_unrelated(classes, related):
+    for class_ in classes.copy():
+        if class_ not in related:
+            classes.remove(class_)
+
+    return classes
 
 
 class PackageRemover(Filter):
@@ -146,33 +155,57 @@ class LoneParentsRemover(Filter):
         return classes
 
 
-class RelatedKeeper(Filter):
+class ConnectedKeeper(Filter):
 
-    def __init__(self, names, attr_name='name',
-                 ignore=('abc.ABC', 'abc.ABCMeta',), keep_all=False):
+    def __init__(self, names, attr_name='name', ignore=('abc.ABC', 'abc.ABCMeta',)):
         self.names = names
         self.attr_name = attr_name
         self.ignore = ignore
-        self.keep_all = keep_all
 
-    def _find_related(self, parent_class, related, ignore):
-        if self.keep_all:
-            return _find_all_related(parent_class, related=related, ignore=ignore)
-        else:
-            return _find_related(parent_class, related=related, ignore=ignore)
+    def filter(self, classes):
+        main_classes = _find_classes_by_attr(
+            classes, self.names, self.attr_name
+        )
+        ignore = _find_classes_by_attr(classes, self.ignore, "long_name")
 
-    def _remove_unrelated(self, classes, related):
+        related = []
+        for main_class in main_classes:
+            _find_connected(main_class, related=related, ignore=ignore)
+
+        return _remove_unrelated(classes, set(related))
+
+
+class RelatedKeeper(Filter):
+
+    def __init__(self, names, attr_name='name', ignore=('abc.ABC', 'abc.ABCMeta',),
+                 find_related=None):
+        self.names = names
+        self.attr_name = attr_name
+        self.ignore = ignore
+
+        if find_related is None:
+            find_related = _find_related
+
+        self.find_related = find_related
+
+    def filter(self, classes):
+        main_classes = _find_classes_by_attr(
+            classes, self.names, self.attr_name
+        )
+        ignore = _find_classes_by_attr(classes, self.ignore, "long_name")
+
+        all_related = []
+        for main_class in main_classes:
+            related = self.find_related(main_class, ignore=ignore)
+            all_related.extend(related)
+
+        return _remove_unrelated(classes, set(all_related))
+
+
+class AbstractKeeper(Filter):
+    def filter(self, classes):
         for class_ in classes.copy():
-            if class_ not in related:
+            if not class_.is_abstract:
                 classes.remove(class_)
 
         return classes
-
-    def filter(self, classes):
-        parent_classes = _find_classes_by_attr(classes, self.names, self.attr_name)
-        ignore = _find_classes_by_attr(classes, self.ignore, "long_name")
-        related = []
-        for parent_class in parent_classes:
-            self._find_related(parent_class, related=related, ignore=ignore)
-
-        return self._remove_unrelated(classes, set(related))

@@ -6,7 +6,7 @@ from calatrava.viz.graphviz.uml import (
     DEFAULT_RECORD_CREATOR,
     load_record_creator_from_dict,
 )
-from calatrava.filters import load_filters_from_ls
+from calatrava.post_filters.uml import load_filters_from_ls
 
 
 def get_global_config_file():

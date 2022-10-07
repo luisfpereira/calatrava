@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 
 import graphviz
 
-from calatrava.filters import apply_filters
+from calatrava.post_filters.uml import apply_filters
 from calatrava.utils import import_class_from_str
 
 
