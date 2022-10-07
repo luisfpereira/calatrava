@@ -26,6 +26,7 @@ PYTHON_PROTECTED_CLASSES = (
 )
 
 # TODO: create factories
+# TODO: concept of alias (then update alias?)
 
 
 class ModuleMixins:
@@ -48,7 +49,8 @@ class ModuleMixins:
 
     @property
     def _already_found(self):
-        return self.classes | self.import_class_map | self.not_found | self.not_found_trial
+        classes_ = {class_.name: class_ for class_ in self.classes_ls}
+        return classes_ | self.import_class_map | self.not_found | self.not_found_trial
 
     def find_class(self, name, visited=()):
         # TODO: try to recode with pipeline? (specially to e.g. avoid checking stars)
@@ -98,7 +100,6 @@ class ModuleMixins:
 
         if not visited:
             # not found (e.g. assignment)
-            # TODO: need to update dummy class
             class_ = DummyClass(name, self)
 
             self.package.manager.add_unknown_class(class_)
@@ -123,7 +124,6 @@ class Module(ModuleMixins, BaseModule):
 class PackageMixins:
 
     def find_class(self, long_name, visited=()):
-        # TODO: review
         long_name_ls = long_name.split('.')
         i = 0
         while True:
@@ -133,7 +133,7 @@ class PackageMixins:
                 raise Exception(f'Cannot find `{long_name}`')
 
             module_name = '.'.join(long_name_ls[:-i])
-            if module_name in self.all_modules_names:
+            if module_name in self.modules_names:
                 class_name = '.'.join(long_name_ls[-i:])
                 break
 
@@ -148,7 +148,7 @@ class PackageMixins:
     def find_modules_classes(self, module_names):
         all_classes = []
         for module_name in module_names:
-            all_classes.extend(self.find_module(module_name))
+            all_classes.extend(self.find_module_classes(module_name))
 
         return all_classes
 
@@ -157,24 +157,31 @@ class PackageMixins:
         return self.find_modules_classes(module_names)
 
     def find_all_classes(self):
-        return self.find_modules_classes(self.all_modules_names)
+        return self.find_modules_classes(self.modules_names)
 
     def find(self, import_):
-        if import_ in self.all_subpackages_names:
-            return self.find_subpackage(import_)
-        elif import_ in self.all_modules_names:
-            return self.find_module(import_)
+        if import_ in self.subpackages_names:
+            return self.find_subpackage_classes(import_)
+        elif import_ in self.modules_names:
+            return self.find_module_classes(import_)
 
         return self.find_class(import_)
 
     def update_inheritance(self):
         done = True
-        for module in self.modules:
+        for module in self.modules_ls:
             done_ = module.update_inheritance()
             if not done_:
                 done = False
 
         return done
+
+    def get_classes(self):
+        classes = {}
+        for module in self.modules_ls:
+            classes |= module.classes
+
+        return classes
 
 
 def _get_classes_visitor(type_):
@@ -216,7 +223,7 @@ class PackageManagerMixins:
 
     def find_all_classes(self):
         classes = []
-        for package in self._packages_ls:
+        for package in self.packages_ls:
             classes.extend(package.find_all_classes())
 
         return classes
@@ -228,7 +235,7 @@ class PackageManagerMixins:
     def update_inheritance(self):
         while True:
             done = True
-            for package in self._packages_ls:
+            for package in self.packages_ls:
                 done_ = package.update_inheritance()
                 if not done_:
                     done = False
@@ -238,7 +245,7 @@ class PackageManagerMixins:
 
     def get_classes(self):
         classes = {}
-        for package in self._packages_ls:
+        for package in self.packages_ls:
             classes |= package.get_classes()
 
         classes |= self._unknown_classes
@@ -254,8 +261,15 @@ TmpBase = namedtuple('TmpBase', ['name', 'is_import'])
 
 
 class BaseClass(metaclass=ABCMeta):
-    def __init__(self, name):
+    def __init__(self, name, module):
         self.name = name
+        self.module = module
+
+        self.children = []
+        self.bases = []
+
+    def __repr__(self):
+        return f'<class: {self.long_name}>'
 
     @abstractmethod
     def long_name(self):
@@ -273,32 +287,39 @@ class BaseClass(metaclass=ABCMeta):
     def found(self):
         return self._found
 
+    def add_child(self, child):
+        self.children.append(child)
+
+    def add_base(self, base):
+        self.bases.append(base)
+        base.add_child(self)
+
 
 class DummyClass(BaseClass):
-    def __init__(self, name):
-        super().__init__(name)
+    def __init__(self, name, module=None):
+        super().__init__(name, module)
         self._found = False
 
     @property
     def long_name(self):
+        if self.module is not None:
+            return f'{self.module.long_name}.{self.name}'
+
         return self.name
+
+    @property
+    def is_abstract(self):
+        return False
 
 
 class BasicClass(BaseClass):
 
     def __init__(self, name, module):
-        super().__init__(name=name)
-
-        self.module = module
+        super().__init__(name=name, module=module)
 
         self._tmp_bases = []
-        self.bases = []
 
-        self.children = []
         self._found = True
-
-    def __repr__(self):
-        return f'<class: {self.long_name}>'
 
     @property
     def long_name(self):
@@ -335,13 +356,6 @@ class BasicClass(BaseClass):
 
     def reset_tmp_bases(self):
         self._tmp_bases = []
-
-    def add_base(self, base):
-        self.bases.append(base)
-        base.add_child(self)
-
-    def add_child(self, child):
-        self.children.append(child)
 
 
 class BasicClassesVisitor(ast.NodeVisitor):
