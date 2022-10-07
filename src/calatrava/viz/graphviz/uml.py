@@ -1,4 +1,6 @@
 
+from abc import ABCMeta, abstractmethod
+
 import graphviz
 
 from calatrava.filters import apply_filters
@@ -24,27 +26,22 @@ def load_record_creator_from_dict(metadata):
     return RecordCreator_(**kwargs)
 
 
-class RecordCreator:
+class BaseRecordCreator(metaclass=ABCMeta):
 
-    def __init__(self, class_attr_name='name', show_cls_attrs=False,
-                 separate_props=False, styles=None, keep_private=True):
+    def __init__(self, class_attr_name='name', styles=None):
         self.class_attr_name = class_attr_name
-        self.show_cls_attrs = show_cls_attrs
-        self.separate_props = separate_props
-        self.keep_private = keep_private
 
-        self.styles = {} if styles is None else styles
-
-        self._default_styles = {
+        self.styles = {
             'normal': {'shape': 'record', 'color': 'black'},
             'abstract': {'shape': 'record', 'color': 'blue'},
             'not_found': {'shape': 'oval', 'color': 'red'},
         }
-        self._update_styles()
+        if styles is not None:
+            self._update_styles(styles)
 
-    def _update_styles(self):
-        self.styles.update(self._default_styles)
-        for key, value in self._default_styles.items():
+    def _update_styles(self, styles):
+        self.styles.update(styles)
+        for key, value in styles.items():
             self.styles[key].update(value)
 
     def _get_node_name(self, class_):
@@ -59,6 +56,27 @@ class RecordCreator:
             style = self.styles.get('not_found')
             dot.node(class_.id, label=self._get_node_name(class_),
                      **style)
+
+    @abstractmethod
+    def _get_node_label(self, class_):
+        pass
+
+
+class BasicRecordCreator(BaseRecordCreator):
+
+    def _get_node_label(self, class_):
+        return self._get_node_name(class_)
+
+
+class RecordCreator(BaseRecordCreator):
+
+    def __init__(self, class_attr_name='name', show_cls_attrs=False,
+                 separate_props=False, styles=None, keep_private=True):
+        super().__init__(class_attr_name=class_attr_name, styles=styles)
+
+        self.show_cls_attrs = show_cls_attrs
+        self.separate_props = separate_props
+        self.keep_private = keep_private
 
     def _get_node_label(self, class_):
         attrs_str = self._get_attrs_str(class_)
