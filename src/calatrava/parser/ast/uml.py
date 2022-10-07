@@ -153,7 +153,7 @@ class PackageMixins:
         return all_classes
 
     def find_subpackage_classes(self, subpackage_name):
-        module_names = [module_name for module_name in self.all_modules_names if module_name.startswith(subpackage_name)]
+        module_names = [module_name for module_name in self.modules_names if module_name.startswith(subpackage_name)]
         return self.find_modules_classes(module_names)
 
     def find_all_classes(self):
