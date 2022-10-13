@@ -457,7 +457,8 @@ class ClassMethodsMixins:
     def base_methods(self):
         methods = []
         for base in self.bases:
-            methods.extend(base.all_methods)
+            if base.found:
+                methods.extend(base.all_methods)
         return methods
 
     def add_method(self, method):

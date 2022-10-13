@@ -63,6 +63,7 @@ class BaseRecordCreator(metaclass=ABCMeta):
 
 
 class BasicRecordCreator(BaseRecordCreator):
+    # TODO: reduces to show_methods=False in RecordCreator
 
     def _get_node_label(self, class_):
         return self._get_node_name(class_)
@@ -70,21 +71,38 @@ class BasicRecordCreator(BaseRecordCreator):
 
 class RecordCreator(BaseRecordCreator):
 
-    def __init__(self, class_attr_name='name', show_cls_attrs=False,
-                 separate_props=False, styles=None, keep_private=True):
+    def __init__(self, class_attr_name='name',
+                 show_attrs=True, show_cls_attrs=False,
+                 show_methods=True, separate_props=False,
+                 styles=None, keep_private=True):
         super().__init__(class_attr_name=class_attr_name, styles=styles)
 
+        self.show_attrs = show_attrs
         self.show_cls_attrs = show_cls_attrs
+        self.show_methods = show_methods
         self.separate_props = separate_props
         self.keep_private = keep_private
 
     def _get_node_label(self, class_):
-        attrs_str = self._get_attrs_str(class_)
-        methods_str = self._get_methods_str(class_)
-
         node_name = self._get_node_name(class_)
 
-        return '{' + f"{node_name}|{attrs_str}|{methods_str}" + '}'
+        label = '{' + f"{node_name}"
+
+        # TODO: keep?
+        if not class_.found:
+            label += '}'
+            return label
+
+        if self.show_attrs:
+            attrs_str = self._get_attrs_str(class_)
+            label += f"|{attrs_str}"
+
+        if self.show_methods:
+            methods_str = self._get_methods_str(class_)
+            label += f"|{methods_str}"
+
+        label += '}'
+        return label
 
     def _get_attrs_str(self, class_):
         attrs_str = ''
