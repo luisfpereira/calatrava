@@ -31,8 +31,8 @@ PYTHON_PROTECTED_CLASSES = (
 
 class ModuleMixins:
 
-    def __init__(self, ClassesVisitor, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, ClassesVisitor, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.classes_visitor = ClassesVisitor(self)
 
         self.import_class_map = {}
@@ -185,8 +185,24 @@ class PackageMixins:
 
 
 def _get_classes_visitor(type_):
+    accepted_types = ["basic", "basic-modules"]
+    if type_ not in accepted_types:
+        raise Exception("Unknown type_")
+
     if type_ == "basic":
         return lambda module: BasicClassesVisitor(module, Class=BasicClass)
+
+    elif type_ == "basic-modules":
+
+        class _Class(ClassMethodsMixins, BasicClass):
+            pass
+
+        class _ClassesVisitor(ClassesMethodsVisitorMixins, BasicClassesVisitor):
+            def __init__(self, module, Class, Method):
+                super().__init__(module=module, Class=Class, Method=Method)
+
+        return lambda module: _ClassesVisitor(
+            module, Class=_Class, Method=BasicMethod)
 
 
 class Package(PackageMixins, BasePackage):
@@ -427,14 +443,32 @@ class BasicClassesVisitor(ast.NodeVisitor):
         return done
 
 
-class Class(BasicClass):
+class ClassMethodsMixins:
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.methods = []
+
+    @property
+    def all_methods(self):
+        return self.methods + self.base_methods
+
+    @property
+    def base_methods(self):
+        methods = []
+        for base in self.bases:
+            methods.extend(base.all_methods)
+        return methods
+
+    def add_method(self, method):
+        self.methods.append(method)
+
+
+class ClassAttrsMixin(BasicClass):
     # TODO: probably via mixins?
 
     def __init__(self, name, module):
         super().__init__(name, module)
-
-        self.attrs = []
-        self.methods = []
 
     @property
     def all_attrs(self):
@@ -448,35 +482,21 @@ class Class(BasicClass):
 
         return attrs
 
-    @property
-    def all_methods(self):
-        return self.methods + self.base_methods
-
-    @property
-    def base_methods(self):
-        methods = []
-        for base in self.bases:
-            methods.extend(base.all_methods)
-        return methods
-
     def add_attr(self, attr_name):
         self.attrs.append(attr_name)
 
     def add_local_var(self, var_name):
+        # TODO: this is not the proper place
         self.cls_attrs.append(var_name)
 
-    def add_method(self, method):
-        self.methods.append(method)
 
-
-class Method:
+class BasicMethod:
 
     def __init__(self, name, class_):
         self.class_ = class_
         class_.add_method(self)
 
         self.name = name
-        self.local_vars = []
         self.decorator_list = []
 
     @property
@@ -486,6 +506,14 @@ class Method:
     @property
     def short_name(self):
         return self.name.split('.')[-1]
+
+    @property
+    def is_property(self):
+        return 'property' in self.decorator_list
+
+    @property
+    def is_classmethod(self):
+        return 'classmethod' in self.decorator_list
 
     def __repr__(self):
         # TODO: handle abstract methods
@@ -499,17 +527,6 @@ class Method:
 
         return f'<{type_}: {self.short_name}>'
 
-    @property
-    def is_property(self):
-        return 'property' in self.decorator_list
-
-    @property
-    def is_classmethod(self):
-        return 'classmethod' in self.decorator_list
-
-    def add_local_var(self, var_name):
-        self.local_vars.append(var_name)
-
     def add_decorators(self, decorator_list):
         for node in decorator_list:
             # TODO: rethink due to function?
@@ -520,22 +537,39 @@ class Method:
             self.decorator_list.append(name)
 
 
-class ClassesVisitor(BasicClassesVisitor):
-    # TODO: probably via mixins?
+class Method:
+    # TODO: these are just mixins
 
-    def __init__(self, module, Class):
-        super().__init__(module, Class)
+    def __init__(self, name, class_):
+        self.local_vars = []
 
+    def add_local_var(self, var_name):
+        self.local_vars.append(var_name)
+
+
+class ClassesMethodsVisitorMixins:
+    def __init__(self, Method, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.Method = Method
-
-    @property
-    def in_class(self):
-        # TODO: is it required?
-        return isinstance(self.stack[-1], Class)
 
     @property
     def current_method(self):
         return self._get_last_from_stack(self.Method)
+
+    def visit_FunctionDef(self, node):
+        func = self.Method(self._get_obj_name(node), self.current_class)
+        func.add_decorators(node.decorator_list)
+
+        self.stack.append(func)
+
+        for inner_node in node.body:
+            self.visit(inner_node)
+
+        self.stack.pop()
+
+
+class ClassesVisitor(BasicClassesVisitor):
+    # TODO: probably via mixins?
 
     def visit_Assign(self, node):
         current_class = self.current_class
@@ -549,14 +583,3 @@ class ClassesVisitor(BasicClassesVisitor):
                 current_class.add_attr(target_name_ls[1])
             elif len(target_name_ls) == 1:
                 current_obj.add_local_var(target_name)
-
-    def visit_FunctionDef(self, node):
-        func = self.Method(self._get_obj_name(node), self.current_class)
-        func.add_decorators(node.decorator_list)
-
-        self.stack.append(func)
-
-        for inner_node in node.body:
-            self.visit(inner_node)
-
-        self.stack.pop()
