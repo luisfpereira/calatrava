@@ -31,9 +31,6 @@ PYTHON_PROTECTED_CLASSES = {
 }
 
 
-# TODO: add pyx support?
-
-
 class ModuleMixins(BaseModuleMixins):
 
     def __init__(self, ClassesVisitor, *args, **kwargs):
@@ -141,6 +138,8 @@ class PackageMixins(BasePackageMixins):
             if module_name in self.modules_names:
                 class_name = '.'.join(long_name_ls[-i:])
                 break
+            elif module_name in self.extra_modules_names:
+                return DummyClass(long_name)
 
         module = self.find_module(module_name)
         return module.find_class(class_name, visited=visited)
@@ -390,9 +389,11 @@ class BasicClass(BaseClass):
             if isinstance(node, ast.Name):
                 name = node.id
                 is_import = False
-            else:  # ast.Attribute
+            elif isinstance(node, ast.Attribute):
                 name = collect_attr_long_name(node)
                 is_import = True
+            else:  # unknown
+                continue
 
             bases.append(TmpBase(name, is_import))
 
@@ -468,8 +469,7 @@ class BasicClassesVisitor(ast.NodeVisitor):
                     prefix = find_in_imports(
                         self.module.root, name_ls[0], self.module.long_name,
                         self.module.is_init)
-                    name = f"{prefix}.{''.join(name_ls[1:])}"
-
+                    name = f"{prefix}.{'.'.join(name_ls[1:])}"
                     base = self.module.package.manager.find_class(name)
                 else:
                     base = self.module.find_class(tmp_base.name)

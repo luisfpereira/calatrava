@@ -75,6 +75,7 @@ class BasePackage:
         self.modules_ls = []
 
         self.modules_names = self._get_modules_names()
+        self.extra_modules_names = self._get_extra_modules_names()
         self.subpackages_names = self._get_subpackages_names()
 
         self.manager = self  # to work in basic case
@@ -103,6 +104,18 @@ class BasePackage:
 
         return set(imports)
 
+    def _get_extra_modules_names(self):
+        sep = os.path.sep
+        paths = []
+        for ext in ["pyi", "pyi.in", "pyx", "pyc"]:
+            paths.extend(glob.glob(f'{self.path}{sep}**{sep}*.{ext}', recursive=True))
+        imports = [str(Path(path).relative_to(self.root_path)).split('.')[0].replace(os.path.sep, '.') for path in paths]
+
+        # remove init
+        imports = [import_[:-9] if import_.endswith('__init__') else import_ for import_ in imports]
+
+        return set(imports)
+
     def _get_subpackages_names(self):
         sep = os.path.sep
         paths = [path for path in glob.glob(f'{self.path}{sep}*{sep}', recursive=True) if not path.endswith('__pycache__/')]
@@ -112,7 +125,7 @@ class BasePackage:
 
     def find_module(self, long_name):
         module = self.modules.get(long_name, None)
-        if module is None:
+        if module is None and long_name in self.modules_names:
             module = self.Module(long_name, self)
             self.modules_ls.append(module)
 
