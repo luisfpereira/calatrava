@@ -24,9 +24,11 @@ from calatrava.parser.ast.base import (
 )
 
 
-PYTHON_PROTECTED_CLASSES = (
+PYTHON_PROTECTED_CLASSES = {
     'Exception', 'type', 'object', 'dict', 'list', 'tuple', 'set',
-)
+    'RuntimeError', 'UserWarning', 'RuntimeWarning', 'ValueError',
+    'AttributeError',
+}
 
 
 class ModuleMixins(BaseModuleMixins):
@@ -339,6 +341,8 @@ class DummyClass(BaseClass):
     def __init__(self, name, module=None):
         super().__init__(name, module)
         self._found = False
+
+        self.is_python_type = name in PYTHON_PROTECTED_CLASSES
 
     @property
     def long_name(self):
