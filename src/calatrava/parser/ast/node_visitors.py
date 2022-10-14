@@ -1,5 +1,5 @@
 
-
+from abc import ABCMeta
 import ast
 
 
@@ -74,10 +74,14 @@ class AttributeVisitor(ast.NodeVisitor):
         self._long_name_ls.append(node.id)
 
 
-class AssignVisitor(ast.NodeVisitor):
+class BaseAssignCollector(ast.NodeVisitor, metaclass=ABCMeta):
 
     def __init__(self):
         self._target_names = []
+
+    def visit_Tuple(self, node):
+        for node_ in node.dims:
+            self.visit(node_)
 
     def collect_targets(self, node):
         self._target_names = []
@@ -87,12 +91,11 @@ class AssignVisitor(ast.NodeVisitor):
 
         return self._target_names
 
+
+class AssignVisitor(BaseAssignCollector):
+
     def visit_Name(self, node):
         self._target_names.append(node.id)
-
-    def visit_Tuple(self, node):
-        for node_ in node.dims:
-            self.visit(node_)
 
     def visit_Attribute(self, node):
         self._target_names.append(collect_attr_long_name(node))

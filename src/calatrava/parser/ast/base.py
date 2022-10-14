@@ -1,4 +1,5 @@
 
+from abc import ABCMeta
 import os
 import ast
 import pkgutil
@@ -45,11 +46,16 @@ class BasePackageManager:
         return package.find_module(long_name)
 
     def find_modules(self):
+        # TODO: find all modules instead?
         modules = []
         for package in self.packages_ls:
             modules.extend(package.find_modules())
 
         return modules
+
+
+class BasePackageManagerMixins(metaclass=ABCMeta):
+    pass
 
 
 class BasePackage:
@@ -123,6 +129,10 @@ class BasePackage:
         return self.modules_ls
 
 
+class BasePackageMixins(metaclass=ABCMeta):
+    pass
+
+
 class BaseModule:
 
     def __init__(self, long_name, package):
@@ -162,3 +172,7 @@ class BaseModule:
         path = f"{name}.py"
 
         return path if os.path.exists(path) else self._get_init_path(name)
+
+
+class BaseModuleMixins(metaclass=ABCMeta):
+    pass

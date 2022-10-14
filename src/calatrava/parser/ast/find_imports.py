@@ -3,8 +3,11 @@ import ast
 
 from calatrava.parser.ast.base import (
     BaseModule,
+    BaseModuleMixins,
     BasePackage,
+    BasePackageMixins,
     BasePackageManager,
+    BasePackageManagerMixins,
 )
 from calatrava.parser.ast.node_visitors import (
     get_import_from_module_name,
@@ -28,7 +31,7 @@ class ImportsVisitor(ast.NodeVisitor):
         )
 
 
-class ModuleMixins:
+class ModuleMixins(BaseModuleMixins):
 
     def __init__(self, ImportsVisitor, **kwargs):
         super().__init__(**kwargs)
@@ -87,13 +90,14 @@ class ModuleMixins:
 
 
 class Module(ModuleMixins, BaseModule):
+    # TODO: pass ImportsVisitor in package instead
 
     def __init__(self, long_name, package, ImportsVisitor=ImportsVisitor):
         super().__init__(long_name=long_name, package=package,
                          ImportsVisitor=ImportsVisitor)
 
 
-class PackageMixins:
+class PackageMixins(BasePackageMixins):
 
     def get_imports(self):
         imports = []
@@ -109,7 +113,7 @@ class Package(PackageMixins, BasePackage):
         super().__init__(path=path, Module=Module)
 
 
-class PackageManagerMixins:
+class PackageManagerMixins(BasePackageManagerMixins):
     def get_imports(self):
         imports = []
         for package in self.packages_ls:

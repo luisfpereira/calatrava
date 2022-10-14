@@ -12,12 +12,15 @@ from calatrava.parser.ast.node_visitors import (
     find_in_imports,
     collect_star_imports,
     collect_attr_long_name,
-    collect_assign_targets,
+    BaseAssignCollector,
 )
 from calatrava.parser.ast.base import (
     BaseModule,
+    BaseModuleMixins,
     BasePackage,
+    BasePackageMixins,
     BasePackageManager,
+    BasePackageManagerMixins,
 )
 
 
@@ -25,11 +28,8 @@ PYTHON_PROTECTED_CLASSES = (
     'Exception', 'type', 'object', 'dict', 'list', 'tuple', 'set',
 )
 
-# TODO: create factories
-# TODO: concept of alias (then update alias?)
 
-
-class ModuleMixins:
+class ModuleMixins(BaseModuleMixins):
 
     def __init__(self, ClassesVisitor, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -121,7 +121,7 @@ class Module(ModuleMixins, BaseModule):
                          ClassesVisitor=ClassesVisitor)
 
 
-class PackageMixins:
+class PackageMixins(BasePackageMixins):
 
     def find_class(self, long_name, visited=()):
         long_name_ls = long_name.split('.')
@@ -185,19 +185,43 @@ class PackageMixins:
 
 
 def _get_classes_visitor(type_):
-    accepted_types = ["basic", "basic-modules"]
+    accepted_types = [
+        "basic", "basic-methods", "basic-attrs", "basic-attrs-methods",
+    ]
     if type_ not in accepted_types:
         raise Exception("Unknown type_")
 
     if type_ == "basic":
         return lambda module: BasicClassesVisitor(module, Class=BasicClass)
 
-    elif type_ == "basic-modules":
+    elif type_ == "basic-methods":
 
         class _Class(ClassMethodsMixins, BasicClass):
             pass
 
-        class _ClassesVisitor(ClassesMethodsVisitorMixins, BasicClassesVisitor):
+        class _ClassesVisitor(MethodsVisitorMixins, BasicClassesVisitor):
+            def __init__(self, module, Class, Method):
+                super().__init__(module=module, Class=Class, Method=Method)
+
+        return lambda module: _ClassesVisitor(
+            module, Class=_Class, Method=BasicMethod)
+
+    elif type_ == "basic-attrs":
+        class _Class(ClassAttrsMixins, BasicClass):
+            pass
+
+        class _ClassesVisitor(AttrsOnlyVisitorMixins, BasicClassesVisitor):
+            def __init__(self, module, Class):
+                super().__init__(module=module, Class=Class)
+
+        return lambda module: _ClassesVisitor(module, Class=_Class)
+
+    elif type_ == "basic-attrs-methods":
+        class _Class(ClassAttrsMixins, ClassMethodsMixins, BasicClass):
+            pass
+
+        class _ClassesVisitor(AttrsVisitorMixins, MethodsVisitorMixins,
+                              BasicClassesVisitor):
             def __init__(self, module, Class, Method):
                 super().__init__(module=module, Class=Class, Method=Method)
 
@@ -216,7 +240,7 @@ class Package(PackageMixins, BasePackage):
         super().__init__(path=path, Module=Module_)
 
 
-class PackageManagerMixins:
+class PackageManagerMixins(BasePackageManagerMixins):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -443,7 +467,11 @@ class BasicClassesVisitor(ast.NodeVisitor):
         return done
 
 
-class ClassMethodsMixins:
+class ClassMixins(metaclass=ABCMeta):
+    pass
+
+
+class ClassMethodsMixins(ClassMixins):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -465,11 +493,12 @@ class ClassMethodsMixins:
         self.methods.append(method)
 
 
-class ClassAttrsMixin(BasicClass):
-    # TODO: probably via mixins?
+class ClassAttrsMixins(ClassMixins):
 
-    def __init__(self, name, module):
-        super().__init__(name, module)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.attrs = []
+        self.cls_attrs = []
 
     @property
     def all_attrs(self):
@@ -479,6 +508,9 @@ class ClassAttrsMixin(BasicClass):
     def base_attrs(self):
         attrs = []
         for base in self.bases:
+            if not base.found:
+                continue
+
             attrs.extend(base.all_attrs)
 
         return attrs
@@ -486,8 +518,7 @@ class ClassAttrsMixin(BasicClass):
     def add_attr(self, attr_name):
         self.attrs.append(attr_name)
 
-    def add_local_var(self, var_name):
-        # TODO: this is not the proper place
+    def add_cls_attr(self, var_name):
         self.cls_attrs.append(var_name)
 
 
@@ -530,7 +561,6 @@ class BasicMethod:
 
     def add_decorators(self, decorator_list):
         for node in decorator_list:
-            # TODO: rethink due to function?
             if isinstance(node, ast.Name):
                 name = node.id
             else:  # ast.Attribute
@@ -538,17 +568,11 @@ class BasicMethod:
             self.decorator_list.append(name)
 
 
-class Method:
-    # TODO: these are just mixins
-
-    def __init__(self, name, class_):
-        self.local_vars = []
-
-    def add_local_var(self, var_name):
-        self.local_vars.append(var_name)
+class ClassesVisitorMixins(metaclass=ABCMeta):
+    pass
 
 
-class ClassesMethodsVisitorMixins:
+class MethodsVisitorMixins(ClassesVisitorMixins):
     def __init__(self, Method, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.Method = Method
@@ -569,18 +593,56 @@ class ClassesMethodsVisitorMixins:
         self.stack.pop()
 
 
-class ClassesVisitor(BasicClassesVisitor):
-    # TODO: probably via mixins?
+class _AssignAttrsOnlyCollector(BaseAssignCollector):
+
+    def visit_Attribute(self, node):
+        self._target_names.append(collect_attr_long_name(node))
+
+
+class _AssignNamesOnlyCollector(BaseAssignCollector):
+
+    def visit_Name(self, node):
+        self._target_names.append(node.id)
+
+
+class AttrsOnlyVisitorMixins(ClassesVisitorMixins):
+    # does not collect class attributes
+    # collects everything in the class namespace
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._attrs_collector = _AssignAttrsOnlyCollector()
 
     def visit_Assign(self, node):
-        current_class = self.current_class
-        current_obj = self.current_obj
+        attrs_names = self._attrs_collector.collect_targets(node)
 
-        target_names = collect_assign_targets(node)
-
-        for target_name in target_names:
+        for target_name in attrs_names:
             target_name_ls = target_name.split('.')
-            if len(target_name_ls) == 2 and target_name_ls[0] == 'self':
-                current_class.add_attr(target_name_ls[1])
-            elif len(target_name_ls) == 1:
-                current_obj.add_local_var(target_name)
+            self.current_class.add_attr(target_name_ls[1])
+
+
+class AttrsVisitorMixins(ClassesVisitorMixins):
+    # it will be incompatible with other `visit_Assign` mixins
+    # needs MethodsVisitorMixins to work properly
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._attrs_collector = _AssignAttrsOnlyCollector()
+        self._cls_attrs_collector = _AssignNamesOnlyCollector()
+
+    def visit_Assign(self, node):
+        if isinstance(self.current_obj, BaseClass):
+            cls_attrs_name = self._cls_attrs_collector.collect_targets(node)
+
+            for target_name in cls_attrs_name:
+                target_name_ls = target_name.split('.')
+
+                if len(target_name_ls) == 1:
+                    self.current_class.add_cls_attr(target_name)
+
+        else:  # is a method
+            attrs_names = self._attrs_collector.collect_targets(node)
+
+            for target_name in attrs_names:
+                target_name_ls = target_name.split('.')
+                self.current_class.add_attr(target_name_ls[1])
