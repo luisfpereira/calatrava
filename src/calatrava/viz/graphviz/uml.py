@@ -62,13 +62,6 @@ class BaseRecordCreator(metaclass=ABCMeta):
         pass
 
 
-class BasicRecordCreator(BaseRecordCreator):
-    # TODO: reduces to show_methods=False in RecordCreator
-
-    def _get_node_label(self, class_):
-        return self._get_node_name(class_)
-
-
 class RecordCreator(BaseRecordCreator):
 
     def __init__(self, class_attr_name='name',
@@ -87,11 +80,6 @@ class RecordCreator(BaseRecordCreator):
         node_name = self._get_node_name(class_)
 
         label = '{' + f"{node_name}"
-
-        # TODO: keep?
-        if not class_.found:
-            label += '}'
-            return label
 
         if self.show_attrs:
             attrs_str = self._get_attrs_str(class_)
