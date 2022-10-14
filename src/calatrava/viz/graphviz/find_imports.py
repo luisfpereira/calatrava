@@ -1,24 +1,30 @@
 
 import graphviz
 
+from calatrava.viz.graphviz.base import BaseRecordCreator
+
 
 def _get_id(name):
     return name.replace(".", "_")
 
 
-class RecordCreator:
-
+class GenericRecordCreator(BaseRecordCreator):
     def __init__(self, shape="record", color="black"):
-        self.style = {"shape": shape, "color": color}
+        styles = {"normal": {"shape": shape, "color": color}}
+        super().__init__(default_styles={}, styles=styles)
 
     def create_node(self, dot, id_, name):
-        dot.node(id_, label=name, **self.style)
+        dot.node(id_, label=name, **self.styles["normal"])
 
 
-class ModuleRecordCreator(RecordCreator):
+class ModuleRecordCreator(BaseRecordCreator):
+
+    def __init__(self, shape="record", color="black"):
+        styles = {"normal": {"shape": shape, "color": color}}
+        super().__init__(default_styles={}, styles=styles)
 
     def create_node(self, dot, module):
-        dot.node(module.id, label=module.long_name, **self.style)
+        dot.node(module.id, label=module.long_name, **self.styles["normal"])
 
 
 def create_graph(package_manager, exclude=(), add_to_modules_names=None):
@@ -47,7 +53,7 @@ def create_graph(package_manager, exclude=(), add_to_modules_names=None):
 
     # draw nodes
     module_record_creator = ModuleRecordCreator(color="blue")
-    record_creator = RecordCreator(shape="oval")
+    record_creator = GenericRecordCreator(shape="oval")
 
     for module in all_parsed_modules.values():
         # TODO: if depends on representation of external nodes

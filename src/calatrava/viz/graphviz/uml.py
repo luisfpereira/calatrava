@@ -1,10 +1,9 @@
 
-from abc import ABCMeta, abstractmethod
-
 import graphviz
 
 from calatrava.post_filters.uml import apply_filters
 from calatrava.utils import import_class_from_str
+from calatrava.viz.graphviz.base import BaseRecordCreator
 
 
 def _get_block_str(block, symbol='', keep_private=True):
@@ -26,26 +25,27 @@ def load_record_creator_from_dict(metadata):
     return RecordCreator_(**kwargs)
 
 
-class BaseRecordCreator(metaclass=ABCMeta):
+class RecordCreator(BaseRecordCreator):
 
-    def __init__(self, class_attr_name='name', styles=None):
-        self.class_attr_name = class_attr_name
+    def __init__(self, class_attr_name='name',
+                 show_attrs=True, show_cls_attrs=False,
+                 show_methods=True, separate_props=False,
+                 styles=None, keep_private=True):
 
-        self.styles = {
+        default_styles = {
             'normal': {'shape': 'record', 'color': 'black'},
             'abstract': {'shape': 'record', 'color': 'blue'},
             'not_found': {'shape': 'oval', 'color': 'red'},
         }
-        if styles is not None:
-            self._update_styles(styles)
 
-    def _update_styles(self, styles):
-        self.styles.update(styles)
-        for key, value in styles.items():
-            self.styles[key].update(value)
+        super().__init__(default_styles=default_styles, styles=styles)
 
-    def _get_node_name(self, class_):
-        return getattr(class_, self.class_attr_name)
+        self.class_attr_name = class_attr_name
+        self.show_attrs = show_attrs
+        self.show_cls_attrs = show_cls_attrs
+        self.show_methods = show_methods
+        self.separate_props = separate_props
+        self.keep_private = keep_private
 
     def create_node(self, dot, class_):
         if class_.found:
@@ -57,24 +57,8 @@ class BaseRecordCreator(metaclass=ABCMeta):
             dot.node(class_.id, label=self._get_node_name(class_),
                      **style)
 
-    @abstractmethod
-    def _get_node_label(self, class_):
-        pass
-
-
-class RecordCreator(BaseRecordCreator):
-
-    def __init__(self, class_attr_name='name',
-                 show_attrs=True, show_cls_attrs=False,
-                 show_methods=True, separate_props=False,
-                 styles=None, keep_private=True):
-        super().__init__(class_attr_name=class_attr_name, styles=styles)
-
-        self.show_attrs = show_attrs
-        self.show_cls_attrs = show_cls_attrs
-        self.show_methods = show_methods
-        self.separate_props = separate_props
-        self.keep_private = keep_private
+    def _get_node_name(self, class_):
+        return getattr(class_, self.class_attr_name)
 
     def _get_node_label(self, class_):
         node_name = self._get_node_name(class_)
