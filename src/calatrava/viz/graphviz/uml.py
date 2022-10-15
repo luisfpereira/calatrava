@@ -109,10 +109,19 @@ class RecordCreator(BaseRecordCreator):
             methods = class_.methods
             base_methods = class_.base_methods
 
+        abstract_methods = [method for method in methods if method.is_abstractmethod]
+        base_abstract_methods = [method for method in base_methods if method.is_abstractmethod]
+        abstract_methods_names = set(self._get_method_names(abstract_methods + base_abstract_methods))
+
+        methods = [method for method in methods if not method.is_abstractmethod]
+        base_methods = [method for method in base_methods if not method.is_abstractmethod]
+
         methods_names = set(self._get_method_names(methods))
         base_methods_names = set(self._get_method_names(base_methods)).difference(methods_names)
+        abstract_methods_names = abstract_methods_names.difference(methods_names).difference(base_methods_names)
 
         methods_str += _get_block_str(sorted(methods_names), symbol='+', keep_private=self.keep_private)
+        methods_str += _get_block_str(sorted(abstract_methods_names), symbol='*', keep_private=self.keep_private)
         methods_str += _get_block_str(sorted(base_methods_names), symbol='-', keep_private=self.keep_private)
 
         return methods_str

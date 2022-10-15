@@ -562,13 +562,18 @@ class BasicMethod:
     def is_classmethod(self):
         return 'classmethod' in self.decorator_list
 
+    @property
+    def is_abstractmethod(self):
+        return 'abstractmethod' in self.decorator_list or 'abc.abstractmethod' in self.decorator_list
+
     def __repr__(self):
-        # TODO: handle abstract methods
 
         if self.is_property:
             type_ = 'property'
         elif self.is_classmethod:
             type_ = 'classmethod'
+        elif self.is_abstractmethod:
+            type_ = 'abstractmethod'
         else:
             type_ = 'method'
 
