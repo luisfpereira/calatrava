@@ -100,7 +100,7 @@ class ModuleMixins(BaseModuleMixins):
                     self.import_class_map[name] = class_
                     return class_
 
-        if not visited:
+        if not visited or (len(visited) == 1 and self in visited):
             # not found (e.g. assignment)
             class_ = DummyClass(name, self)
 
@@ -470,6 +470,7 @@ class BasicClassesVisitor(ast.NodeVisitor):
                         self.module.root, name_ls[0], self.module.long_name,
                         self.module.is_init)
                     name = f"{prefix}.{'.'.join(name_ls[1:])}"
+
                     base = self.module.package.manager.find_class(name)
                 else:
                     base = self.module.find_class(tmp_base.name)
