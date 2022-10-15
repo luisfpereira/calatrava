@@ -92,9 +92,13 @@ class RecordCreator(BaseRecordCreator):
 
     def _get_methods_str(self, class_):
         methods_str = ''
+
+        methods = [method for method in class_.methods if not method.is_setter]
+        base_methods = [method for method in class_.base_methods if not method.is_setter]
+
         if self.separate_props:
-            props = [method for method in class_.methods if method.is_property]
-            base_props = [method for method in class_.base_methods if method.is_property]
+            props = [method for method in methods if method.is_property]
+            base_props = [method for method in base_methods if method.is_property]
 
             props_names = set(self._get_method_names(props, suffix=''))
             base_props_names = set(self._get_method_names(base_props, suffix='')).difference(props_names)
@@ -102,12 +106,8 @@ class RecordCreator(BaseRecordCreator):
             methods_str += _get_block_str(sorted(props_names), symbol='+', keep_private=self.keep_private)
             methods_str += f"{_get_block_str(sorted(base_props_names), symbol='-', keep_private=self.keep_private)}|"
 
-            methods = [method for method in class_.methods if not method.is_property]
-            base_methods = [method for method in class_.base_methods if not method.is_property]
-
-        else:
-            methods = class_.methods
-            base_methods = class_.base_methods
+            methods = [method for method in methods if not method.is_property]
+            base_methods = [method for method in base_methods if not method.is_property]
 
         abstract_methods = [method for method in methods if method.is_abstractmethod]
         base_abstract_methods = [method for method in base_methods if method.is_abstractmethod]

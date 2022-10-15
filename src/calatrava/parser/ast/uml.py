@@ -566,6 +566,10 @@ class BasicMethod:
     def is_abstractmethod(self):
         return 'abstractmethod' in self.decorator_list or 'abc.abstractmethod' in self.decorator_list
 
+    @property
+    def is_setter(self):
+        return f"{self.short_name}.setter" in self.decorator_list
+
     def __repr__(self):
 
         if self.is_property:
@@ -574,6 +578,8 @@ class BasicMethod:
             type_ = 'classmethod'
         elif self.is_abstractmethod:
             type_ = 'abstractmethod'
+        elif self.is_setter:
+            type_ = 'setter'
         else:
             type_ = 'method'
 
