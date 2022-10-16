@@ -552,7 +552,7 @@ class BasicMethod:
 
     @property
     def short_name(self):
-        return self.name.split('.')[-1]
+        return '.'.join(self.name.split('.')[1:])
 
     @property
     def is_property(self):
