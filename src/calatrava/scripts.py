@@ -37,7 +37,8 @@ def _handle_variadic_input(args):
 def parse_packages(args):
     packages_paths, imports = _handle_variadic_input(args)
 
-    packages = [Package(package_path) for package_path in packages_paths]
+    packages = [Package(package_path, classes_visitor="basic-attrs-methods")
+                for package_path in packages_paths]
     package_manager = PackageManager(packages)
 
     if imports:
@@ -45,9 +46,10 @@ def parse_packages(args):
             if len(import_.split('.')) > 1:
                 package_manager.find(import_)
             else:
-                package_manager.find_package(import_)
+                package_manager.packages[import_].find_all_classes()
+
     else:
-        package_manager.find_all()
+        package_manager.find_all_classes()
 
     package_manager.update_inheritance()
 
