@@ -570,6 +570,14 @@ class BasicMethod:
     def is_setter(self):
         return f"{self.short_name}.setter" in self.decorator_list
 
+    @property
+    def is_private(self):
+        return self.short_name.startswith("_")
+
+    @property
+    def is_public(self):
+        return not self.is_private
+
     def __repr__(self):
 
         if self.is_property:
