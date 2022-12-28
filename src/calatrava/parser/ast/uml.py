@@ -544,6 +544,7 @@ class BasicMethod:
         class_.add_method(self)
 
         self.name = name
+        self.args_list = []
         self.decorator_list = []
 
     @property
@@ -593,6 +594,10 @@ class BasicMethod:
 
         return f'<{type_}: {self.short_name}>'
 
+    def add_args(self, args):
+        for arg in args.args:
+            self.args_list.append(arg.arg)
+
     def add_decorators(self, decorator_list):
         for node in decorator_list:
             if isinstance(node, ast.Name):
@@ -617,6 +622,7 @@ class MethodsVisitorMixins(ClassesVisitorMixins):
 
     def visit_FunctionDef(self, node):
         func = self.Method(self._get_obj_name(node), self.current_class)
+        func.add_args(node.args)
         func.add_decorators(node.decorator_list)
 
         self.stack.append(func)
